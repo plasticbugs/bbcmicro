@@ -52,6 +52,8 @@ git ls-files | while IFS= read -r f; do
         case "$f" in
             *.rom|*.zip|*.7z|*.bin|*.nv)
                 printf '  REFUSE  %s\n            ROM or romset file\n' "$f" >>"$report" ;;
+            *.ssd|*.dsd|*.adf|*.adl|*.uef|*.csw)
+                printf '  REFUSE  %s\n            disc or tape image (software, not gateware)\n' "$f" >>"$report" ;;
         esac ;;
     esac
     # Anything under a directory named after the romset -- except the package's

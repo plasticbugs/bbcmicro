@@ -7,6 +7,15 @@
 *.rom
 *.bin
 !pkg/**/*.bin
+# Disc and tape images are software, not gateware: the user supplies their own
+# and they never enter the tree.  Exile's SSD sits in the root while it is the
+# benchmark game; it is not ours to publish.
+*.ssd
+*.dsd
+*.adf
+*.adl
+*.uef
+*.csw
 # Build products
 projects/db/
 projects/incremental_db/
