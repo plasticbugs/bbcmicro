@@ -318,6 +318,22 @@ handler in the OS, so the byte rate is what makes disc access work or fail:
 250 kbit/s FM, one byte per 64 µs, which is 128 CPU cycles — comfortable for
 the NMI handler, and the reason a core that answers *too fast* breaks DFS.
 
+Measured here, because this core did answer too fast: the handler DFS copies
+to `&0D00` costs 70 cycles — about 38 µs, with the 1 MHz stretching on `&FE80`
+and `&FE84` — from the NMI to its `RTI`. At 64 µs a byte that fits with 26 µs
+to spare. At 32 µs it does not, and nothing announces itself: every request
+arrives inside the previous handler, at the `BNE` on `&A3`, so the transfer
+runs as a chain of nested NMIs one stack frame deeper per byte. Every data
+byte still lands in the right place — the catalogue read back byte-perfect —
+but the `DEC &A4` at each sector boundary never runs, and DFS ends the read
+believing a sector is still outstanding.
+
+The completion interrupt has to clear that same tail. A real 8271 reads the
+sector's two CRC bytes before it signals (`ref/mame/devices/i8271.cpp`,
+`slot < sector_size+2`), which is 128 µs; assert it a few µs after the last
+byte and the 6502 takes it *between* the handler's store and its pointer
+increment, and DFS records an address and a count one byte short.
+
 ### 7.3 The disc image
 
 `Disc040-ExileR.ssd` is a plain DFS single-sided image: 80 tracks × 10 sectors
