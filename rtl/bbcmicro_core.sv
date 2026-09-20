@@ -357,12 +357,42 @@ module bbcmicro_core (
     // so a game that reprograms the CRTC moves the picture exactly as it
     // would on a monitor.
     // =====================================================================
-    localparam int H_START = 208;       // dots after the hsync edge
+    // Where the picture lands is not the same in teletext as in the bitmap
+    // modes, and the machine is responsible for most of the difference.  The
+    // OS puts hsync at character 51 of 64 in MODE 7 (1 MHz characters) and at
+    // 98 of 128 in MODE 0-6 (2 MHz), so the CRTC's display starts 208 dots
+    // after the hsync edge in one and 240 in the other: the machine itself
+    // sets MODE 7 two microseconds left of a bitmap mode, which is why
+    // teletext sits left of the other modes on a real monitor.
+    //
+    // The rest is this core's own pipelines, measured -- the bitmap path from
+    // where the MODE 1 cursor block lands (a block fills its whole cell, so
+    // it is a better ruler than a glyph), the teletext path from the
+    // alignment that makes the Exile title page agree with MAME:
+    //
+    //     MODE 0-6   CRTC 240   picture 248   8 dots, one ULA character
+    //     MODE 7     CRTC 208   picture 275   67 dots, about four characters
+    //
+    // (Those are the bench's raster coordinates, which lag hcnt by the one
+    // clock the sync output is registered for, so the starts below are one
+    // less.  Checked by the score: with the window a dot late the Exile title
+    // page agreed with MAME on 80.00% of its lit pixels, which is exactly
+    // what the raw capture scored one dot off the peak; on the peak it is
+    // 89.19%.)
+    //
+    // Both pictures are exactly 640 dots wide and they are 27 dots apart, so
+    // one fixed window cannot hold both: with the window where MODE 7's CRTC
+    // asks for it, four characters of every teletext line fell off the right
+    // -- which is what the picture looked like.  The window follows the
+    // ULA's own teletext bit, sampled at the hsync edge so it cannot move
+    // inside a line.
+    localparam int H_START_BITMAP = 247;
+    localparam int H_START_TTXT   = 274;
     localparam int H_WIDTH = 640;
     localparam int V_START = 24;        // lines after the vsync edge
     localparam int V_HEIGHT = 256;
 
-    logic [10:0] hcnt;
+    logic [10:0] hcnt, h_start;
     logic  [9:0] vcnt;
     logic        hs_d, vs_d;
     wire         hs_rise = crtc_hs && !hs_d;
@@ -373,12 +403,14 @@ module bbcmicro_core (
             hs_d <= crtc_hs;
             vs_d <= crtc_vs;
             hcnt <= hs_rise ? 11'd0 : (hcnt + 11'd1);
+            if (hs_rise)
+                h_start <= ttxt_sel ? 11'(H_START_TTXT) : 11'(H_START_BITMAP);
             if (vs_rise)      vcnt <= 10'd0;
             else if (hs_rise) vcnt <= vcnt + 10'd1;
         end
     end
 
-    wire in_h = (hcnt >= 11'(H_START)) && (hcnt < 11'(H_START + H_WIDTH));
+    wire in_h = (hcnt >= h_start) && (hcnt < h_start + 11'(H_WIDTH));
     wire in_v = (vcnt >= 10'(V_START)) && (vcnt < 10'(V_START + V_HEIGHT));
 
     // The colour is whatever the ULA is producing, in the window or out of it:
