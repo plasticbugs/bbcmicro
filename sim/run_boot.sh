@@ -17,7 +17,7 @@ mkdir -p "$root/artifacts/boot"
 
 . "$here/waivers.sh"
 
-verilator --cc --exe --build -j "${JOBS:-8}" -O2 \
+verilator --cc --exe --build -j "${JOBS:-8}" -O3 --x-assign fast --x-initial fast \
     -Wall -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM \
     -Wno-PINCONNECTEMPTY -Wno-TIMESCALEMOD "$WAIVERS" \
     --top-module tb_boot_top -Mdir obj_boot \

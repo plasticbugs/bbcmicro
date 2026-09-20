@@ -1,6 +1,6 @@
 # ==============================================================================
 # BBC Micro on the Pocket: timing constraints beyond the BSP's
-# sys_constr.sdc. The 96 MHz system clock, its 6.857 MHz video pair and the
+# sys_constr.sdc. The 96 MHz system clock, its 16 MHz video pair and the
 # shifted SDRAM clock all come from core_pll and are timed as one related
 # group; the two 74.25 MHz inputs and the audio PLL are asynchronous to it.
 # The PLL's fifth output drives nothing in core_top, so no clock of its own
@@ -46,7 +46,8 @@ set_multicycle_path -setup 2 -from [get_clocks {dram_clk}] -to [get_registers {*
 set_multicycle_path -setup 3 -from [get_registers {*|sdram_ctrl:*|last[*]}] -to [get_registers {*|sdram_ctrl:*|*}]
 set_multicycle_path -hold  2 -from [get_registers {*|sdram_ctrl:*|last[*]}] -to [get_registers {*|sdram_ctrl:*|*}]
 
-# The pixel hand-over to the 6.857 MHz video clock. The dot enable's phase is
+# The pixel hand-over to the 16 MHz video clock -- the BBC's own dot clock,
+# 96/6, so six system clocks a pixel. The dot enable's phase is
 # pinned to clk_vid (core_top.sv's pix_sync into clk_enables.sv), so the
 # colour and sync registers are launched a fixed number of system clocks
 # before the clk_vid edge that samples them, and the setup check starts from
@@ -56,9 +57,9 @@ set VID_OUT [get_registers {ic|vr_q[*] ic|vg_q[*] ic|vb_q[*] ic|vhs_q ic|vvs_q i
 set_multicycle_path -setup 3 -start -from [get_clocks {ic|core_pll|core_pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk}] -to $VID_OUT
 set_multicycle_path -hold  2 -start -from [get_clocks {ic|core_pll|core_pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk}] -to $VID_OUT
 
-# SRAM: registered pins held for whole system cycles, a read sampled several
-# cycles after the address (target/pocket/sram_port.sv), so the pins are not
-# timed against a clock.
+# SRAM: unused by this core (docs/core-design.md section 2) -- a disc image
+# does not fit in 128 KB and everything else is block RAM.  The pins are still
+# brought out by the BSP, and are not timed against a clock.
 set_false_path -to   [get_ports {sram_*}]
 set_false_path -from [get_ports {sram_dq[*]}]
 

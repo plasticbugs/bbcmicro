@@ -26,6 +26,7 @@ module tb_boot_top (
     input  logic  [2:0] kev_row,
     input  logic        key_break,
     input  logic  [7:0] links,
+    input  logic        disc_loaded,
 
     // what the bench watches
     output logic [23:0] rgb,
@@ -45,7 +46,9 @@ module tb_boot_top (
     output logic [15:0] trc_dbg
 );
     // Ideal disc memory: one image, answered the clock after it is asked for.
-    logic [7:0] disc_mem [2097152];   // two drives of 1 MB
+    // The bench fills it directly -- the real path to it is SDRAM, and that is
+    // sim/run_pocket.sh's job, not this bench's (METHODOLOGY section 5.16).
+    logic [7:0] disc_mem [2097152] /* verilator public_flat_rw */;  // 2 x 1 MB
     logic       disc_req, disc_we, disc_drive;
     logic [19:0] disc_addr;
     logic  [7:0] disc_din;
@@ -66,7 +69,8 @@ module tb_boot_top (
         .dl_we(dl_we), .dl_addr(dl_addr), .dl_data(dl_data),
         .disc_req(disc_req), .disc_we(disc_we), .disc_drive(disc_drive),
         .disc_addr(disc_addr), .disc_din(disc_din),
-        .disc_ack(disc_ack), .disc_q(disc_q), .disc_present(2'b01),
+        .disc_ack(disc_ack), .disc_q(disc_q),
+        .disc_present({1'b0, disc_loaded}), .disc_dsided(2'b00),
         .kev_stb(kev_stb), .kev_press(kev_press),
         .kev_col(kev_col), .kev_row(kev_row), .kev_clear(1'b0),
         .key_break(key_break), .links(links),

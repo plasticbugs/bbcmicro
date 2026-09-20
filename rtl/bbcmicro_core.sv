@@ -35,6 +35,7 @@ module bbcmicro_core (
     input  logic        disc_ack,
     input  logic  [7:0] disc_q,
     input  logic  [1:0] disc_present,   // a drive with no image is not ready
+    input  logic  [1:0] disc_dsided,    // and a double-sided image interleaves
 
     // ---------------- keyboard, as matrix positions (the on-screen keyboard
     // and core_top's key map both know the matrix; docs/hardware.md 3.1)
@@ -506,16 +507,20 @@ module bbcmicro_core (
     wire [7:0] acia_do = cpu_a[0] ? 8'h00 : 8'h02;
 
     // =====================================================================
-    // Disc controller -- not yet.  The 8271 answers FF so DFS sees no drive.
+    // Disc controller.  BREAK resets it, as it does on the board.
     // =====================================================================
-    wire [7:0] fdc_do = 8'hFF;
-    wire       fdc_irq = 1'b0, fdc_drq = 1'b0;
-    assign disc_req   = 1'b0;
-    assign disc_we    = 1'b0;
-    assign disc_drive = 1'b0;
-    assign disc_addr  = 20'd0;
-    assign disc_din   = 8'd0;
-    assign dbg_fdc    = 8'd0;
+    wire [7:0] fdc_do;
+    wire       fdc_irq, fdc_drq;
+    i8271 u_fdc (
+        .clk(clk), .rst(!cpu_reset_n), .cen_1us(cen_1m),
+        .acc(fdc_sel && cpu_cen), .rnw(cpu_rnw), .addr(cpu_a[2:0]),
+        .din(cpu_do), .dout(fdc_do), .irq(fdc_irq), .drq(fdc_drq),
+        .img_req(disc_req), .img_we(disc_we), .img_drive(disc_drive),
+        .img_addr(disc_addr), .img_wdata(disc_din),
+        .img_ack(disc_ack), .img_rdata(disc_q),
+        .img_present(disc_present), .img_dsided(disc_dsided),
+        .dbg(dbg_fdc)
+    );
 
     // =====================================================================
     // Interrupts (docs/hardware.md section 4)
@@ -561,7 +566,7 @@ module bbcmicro_core (
     assign dbg_wait       = (cycle_mask != 2'd0);
     assign watchdog_reset = 1'b0;
 
-    wire _unused = &{1'b0, cpu_a24[23:16], disc_ack, disc_q, disc_present,
+    wire _unused = &{1'b0, cpu_a24[23:16],
                      statid_sel, adlc_sel, tube_sel, serula_sel, acia_sel,
                      ttxt_sel, sysvia_do_oe_n, uservia_do_oe_n, sysvia_pa_oe_n,
                      crtc_ra[4], 1'b0};

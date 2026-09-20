@@ -30,9 +30,10 @@
 // Instantiated by the real top-level: apf_top
 //
 // The machine (rtl/bbcmicro_core.sv) is platform-agnostic; this file is the APF
-// glue: bridge, the ROM slot, the interact menu, video and audio hand-off, the
-// memories, and the bring-up panel.  The ROM image lives in SDRAM and the
-// tilemap RAM in the SRAM (target/pocket/bbcmicro_mem.sv).
+// glue: bridge, the data slots, the interact menu, video and audio hand-off,
+// the memories, and the bring-up panel.  The ROM image goes straight into the
+// core's block RAM; SDRAM carries the disc images and nothing else
+// (target/pocket/bbcmicro_mem.sv).
 //
 // Everything above the "@ The game" banner is the framework's and is the same
 // in every core here.  Below it, the shapes are proven on hardware -- the
@@ -50,7 +51,7 @@ module core_top
          //! ------------------------------------------------------------------------
          // Memory
          parameter USE_SDRAM    = 1,       //! Enable SDRAM (the whole ROM image)
-         parameter USE_SRAM     = 1,       //! Enable SRAM (tilemap VRAM)
+         parameter USE_SRAM     = 0,       //! SRAM: unused by this core
          parameter USE_CRAM0    = 0,       //! Cellular RAM #1: unused
          parameter USE_CRAM1    = 0,       //! Cellular RAM #2: unused
          // Video
@@ -817,6 +818,7 @@ module core_top
     synch_3 sync_lck(pll_core_locked, pll_core_locked_s, clk_74a);
 
     //! ------------------------------------------------------------------------
+    //! ------------------------------------------------------------------------
     //! @ The game
     //! ------------------------------------------------------------------------
     wire reset_sw_s;
@@ -827,148 +829,140 @@ module core_top
     //! The SDRAM initialises on the hardware reset; the machine is held until
     //! the SDRAM is ready and the host's first "all complete" has been seen
     //! (sticky, because the bridge clears all-complete on any later slot
-    //! request), and by the menu's reset switch.
+    //! request -- and loading a disc while the machine runs must not reset it),
+    //! and by the menu's reset switch.
     wire mem_init  = ~pll_locked_sys;
     wire mem_ready;
     logic loaded = 1'b0;
     wire  allc_s;
     synch_3 sync_allc(dataslot_allcomplete, allc_s, clk_sys);
     always_ff @(posedge clk_sys) if (allc_s) loaded <= 1'b1;
-    wire  g_reset = reset_sw_s | ~loaded | ~mem_ready | ~sram_done;
-
-    //! ROM: one slot with the flat image tools/mra_build.py makes from bbcmicro.mra.
-    //! Its layout is in target/pocket/bbcmicro_mem.sv; change the two together.
-    wire        ioctl_isROM = ioctl_download && ioctl_index == 16'h0;
-    wire        dl_we       = ioctl_isROM && ioctl_wr;
-    wire [24:0] dl_addr     = ioctl_addr[24:0];
-    wire  [7:0] dl_data     = ioctl_data;
-
-    //! Controls, active low as arcade boards read them.  IN0 and IN1 are the
-    //! two players: bit 0 up, 1 down, 2 left, 3 right, 4 button 1, 5 button 2.
-    //! IN2 is the system port: bit 1 service, 2 coin 1, 3 coin 2, 6 start 1,
-    //! 7 start 2.  REARRANGE THESE to the board's own bit order, from MAME's
-    //! PORT_START blocks -- and write the order into docs/hardware.md first.
-    //!
-    //! A and Y are both button 1 and B and X both button 2, so either thumb
-    //! position works; select inserts a coin.
-    wire p1_b1 = p1_btn_a | p1_btn_y, p1_b2 = p1_btn_b | p1_btn_x;
-    wire p2_b1 = p2_btn_a | p2_btn_y, p2_b2 = p2_btn_b | p2_btn_x;
-    wire svc   = mod_sw1[0] | svc_sw;
-
-    wire [7:0] g_in0 = ~{2'b00, p1_b2, p1_b1,
-                          p1_right | j1_right, p1_left | j1_left,
-                          p1_down  | j1_down,  p1_up   | j1_up};
-    wire [7:0] g_in1 = ~{2'b00, p2_b2, p2_b1,
-                          p2_right | j2_right, p2_left | j2_left,
-                          p2_down  | j2_down,  p2_up   | j2_up};
-    wire [7:0] g_in2 = ~{p2_start, p1_start, 2'b00,
-                          p2_select, p1_select, svc, 1'b0};
-
-    //! The two DIP banks.  The menu word starts at zero and is XORed with the
-    //! board's factory setting, so nothing set is the board as it shipped and
-    //! each menu value is only the difference from it -- which also means a
-    //! switch the menu does not expose keeps its factory value instead of
-    //! reading as pressed before the Pocket has written the word.
-    //!   DSWA 0xFF, DSWB 0xFF: REPLACE with the board's factory settings and
-    //!   say here what each means.  Every entry in interact.json must do
-    //!   something on hardware (METHODOLOGY section 5.5).
-    wire [7:0] g_dswa = 8'hFF ^ dip_sw0;
-    wire [7:0] g_dswb = 8'hFF ^ dip_sw1;
-
-    //! Bring-up switches from the modifier word (the "Bring-up" entries of
-    //! interact.json; take them off the menu for a release, leave them here):
-    //! bit 4 SDRAM read capture alternate, 5 slow bursts, 7 slow SRAM reads,
-    //! and mod_sw1 bit 7 stretched SRAM writes.
-    wire g_rd_late      = ~mod_sw0[4];
-    wire g_burst_slow   =  mod_sw0[5];
-    wire g_sram_slow    =  mod_sw0[7];
-    wire g_sram_slow_wr =  mod_sw1[7];
-
-    // the core's memory ports
-    wire        mrom_req, mrom_ack;  wire [18:1] mrom_addr;  wire [15:0] mrom_q;
-    wire        srom_req, srom_ack;  wire [15:0] srom_addr;  wire  [7:0] srom_q;
-    wire        gfxl_req, gfxl_ack;  wire [17:0] gfxl_addr;  wire [31:0] gfxl_q;
-    wire        gfxs_req, gfxs_ack;  wire [17:0] gfxs_addr;  wire [31:0] gfxs_q;
-    wire        vram_req, vram_we, vram_ack;
-    wire [14:0] vram_addr;  wire [15:0] vram_din, vram_q;  wire [1:0] vram_ben;
+    wire  g_reset = reset_sw_s | ~loaded | ~mem_ready;
 
     //! ------------------------------------------------------------------
-    //! SRAM bring-up test.  A dead tilemap RAM blanks every tilemap while
-    //! leaving the CPU and the sprite engine looking healthy -- a black
-    //! screen with a running frame counter.  So before the core is let out
-    //! of reset, two known words go into the SRAM and come back out, and
-    //! what came back is shown on the panel.  The core is still in reset here, so nothing else is driving
-    //! the port and the two cannot collide.
-    //!
-    //! A55A and 5AA5 are chosen to be each other's byte-swap and nibble
-    //! inverse, so a stuck bit, a swapped byte lane and a dead bus all read
-    //! differently from a pass.
-    localparam logic [15:0] SRAM_T0 = 16'hA55A, SRAM_T1 = 16'h5AA5;
-    wire        cv_req, cv_we, cv_ack;
-    wire [14:0] cv_addr;  wire [15:0] cv_din;  wire [1:0] cv_ben;
-    logic [15:0] sram_rd0, sram_rd1;
-    logic  [2:0] sram_st;
-    logic        sram_done, tv_req, tv_we;
-    logic [14:0] tv_addr;
-    logic [15:0] tv_din;
-    // A port that never acknowledges would leave the core in reset for good
-    // and the panel showing nothing but zeros, which looks the same as a
-    // memory that answers wrongly.  Give up after a millisecond instead: the
-    // read-backs stay zero, but the core runs and says so.
-    logic [16:0] sram_tmo;
+    //! The data slots.
+    //!   0  the ROM image tools/mra_build.py builds from bbcmicro.mra.  It
+    //!      goes straight into block RAM inside the core: a block RAM write
+    //!      cannot stall, so this path needs no FIFO.
+    //!   1  a disc image for drive 0, and 2 for drive 1.  These go to SDRAM
+    //!      through bbcmicro_mem's download FIFO, because the SDRAM can be
+    //!      busy and the loader cannot be told to wait (METHODOLOGY 5.16).
+    //! Their sizes are kept: a 400 KB image is double-sided and its tracks
+    //! alternate sides, which the disc controller has to know.
+    //! ------------------------------------------------------------------
+    wire        is_rom   = ioctl_download && (ioctl_index == 16'd0);
+    wire        is_disc0 = ioctl_download && (ioctl_index == 16'd1);
+    wire        is_disc1 = ioctl_download && (ioctl_index == 16'd2);
 
+    wire        rom_we   = is_rom && ioctl_wr;
+    wire [24:0] rom_addr = ioctl_addr[24:0];
+    wire  [7:0] rom_data = ioctl_data;
+
+    wire        disc_dl_we    = (is_disc0 || is_disc1) && ioctl_wr;
+    wire [24:0] disc_dl_addr  = ioctl_addr[24:0];
+    wire  [7:0] disc_dl_data  = ioctl_data;
+    wire        disc_dl_drive = is_disc1;
+
+    //! What is in each drive, and whether the image carries both sides.  The
+    //! host tells us the size when it starts the transfer; a drive with no
+    //! image must read as "not ready", or DFS waits for a disc that will
+    //! never spin up.
+    logic [1:0] disc_present = 2'b00;
+    logic [1:0] disc_dsided  = 2'b00;
+    wire        dsw_s;
+    wire [15:0] dsid_s;
+    wire [31:0] dssize_s;
+    synch_3      sync_dsw(dataslot_requestwrite, dsw_s, clk_sys);
+    synch_3 #(16) sync_dsid(dataslot_requestwrite_id, dsid_s, clk_sys);
+    synch_3 #(32) sync_dssz(dataslot_requestwrite_size, dssize_s, clk_sys);
+    logic dsw_d;
     always_ff @(posedge clk_sys) begin
-        if (!mem_ready) begin
-            sram_st <= 3'd0; sram_done <= 1'b0; tv_req <= 1'b0; tv_we <= 1'b0;
-            sram_rd0 <= '0; sram_rd1 <= '0; sram_tmo <= '0;
-        end else if (!sram_done) begin
-            sram_tmo <= sram_tmo + 17'd1;
-            if (&sram_tmo) sram_done <= 1'b1;       // ~1.4 ms at 96 MHz
-            case (sram_st)
-                3'd0: begin tv_we <= 1'b1; tv_addr <= 15'h0000; tv_din <= SRAM_T0;
-                            tv_req <= 1'b1; sram_st <= 3'd1; end
-                3'd1: if (vram_ack) begin tv_req <= 1'b0; sram_st <= 3'd2; end
-                3'd2: begin tv_we <= 1'b1; tv_addr <= 15'h0001; tv_din <= SRAM_T1;
-                            tv_req <= 1'b1; sram_st <= 3'd3; end
-                3'd3: if (vram_ack) begin tv_req <= 1'b0; sram_st <= 3'd4; end
-                3'd4: begin tv_we <= 1'b0; tv_addr <= 15'h0000;
-                            tv_req <= 1'b1; sram_st <= 3'd5; end
-                3'd5: if (vram_ack) begin sram_rd0 <= vram_q; tv_req <= 1'b0; sram_st <= 3'd6; end
-                3'd6: begin tv_we <= 1'b0; tv_addr <= 15'h0001;
-                            tv_req <= 1'b1; sram_st <= 3'd7; end
-                3'd7: if (vram_ack) begin sram_rd1 <= vram_q; tv_req <= 1'b0;
-                                          sram_done <= 1'b1; end
-                default: ;
-            endcase
+        dsw_d <= dsw_s;
+        if (dsw_s && !dsw_d) begin
+            if (dsid_s == 16'd1) begin
+                disc_present[0] <= (dssize_s != 32'd0);
+                disc_dsided[0]  <= (dssize_s > 32'd204800);
+            end
+            if (dsid_s == 16'd2) begin
+                disc_present[1] <= (dssize_s != 32'd0);
+                disc_dsided[1]  <= (dssize_s > 32'd204800);
+            end
         end
     end
 
-    assign vram_req  = sram_done ? cv_req  : tv_req;
-    assign vram_we   = sram_done ? cv_we   : tv_we;
-    assign vram_addr = sram_done ? cv_addr : tv_addr;
-    assign vram_din  = sram_done ? cv_din  : tv_din;
-    assign vram_ben  = sram_done ? cv_ben  : 2'b11;
-    assign cv_ack    = sram_done ? vram_ack : 1'b0;
+    //! ------------------------------------------------------------------
+    //! Controls.  The Pocket has no keyboard, so the pad types: the d-pad
+    //! and the buttons each press a key in the BBC's matrix, chosen from
+    //! the Core Settings menu, and L+R+Select brings up the on-screen
+    //! keyboard for everything else.
+    //! ------------------------------------------------------------------
+    wire p1_b1 = p1_btn_a, p1_b2 = p1_btn_b, p1_b3 = p1_btn_x, p1_b4 = p1_btn_y;
+
+    //! The startup links the OS reads out of the keyboard's row 0
+    //! (docs/hardware.md 3.1).  Bit 0 is column 2.  Fitted reads as pressed:
+    //!   mod_sw2[0]  Boot: fitted means BREAK alone boots the disc
+    //!   mod_sw2[3:1] the screen mode the OS starts in, inverted as the
+    //!                hardware reads it
+    wire [7:0] g_links = {3'b000, mod_sw2[3:1], 1'b0, mod_sw2[0]};
+
+    wire        kev_stb, kev_press;
+    wire  [3:0] kev_col;
+    wire  [2:0] kev_row;
+
+    //! BREAK is L + R + Start, because it is a reset and wants to be hard to
+    //! hit by accident; with the Boot link fitted it boots the disc.
+    wire        key_break = p1_btn_l1 && p1_btn_r1 && p1_start;
+
+    //! The on-screen keyboard is not built yet; when it is, it takes the pad
+    //! (inhibit) and draws over the picture (osk_active/osk_pix).
+    wire        osk_visible = 1'b0;
+    wire        osk_active  = 1'b0;
+    wire        osk_pix     = 1'b0;
+
+    //! Which key each control presses.  mod_sw3 and mod_sw2's upper nibble
+    //! carry the choices; the lists are in rtl/bbc_input.sv and must stay in
+    //! step with interact.json.
+    bbc_input u_input (
+        .clk(clk_sys), .rst(g_reset),
+        .up(p1_up), .down(p1_down), .left(p1_left), .right(p1_right),
+        .b_a(p1_b1), .b_b(p1_b2), .b_x(p1_b3), .b_y(p1_b4),
+        .b_l(p1_btn_l1), .b_r(p1_btn_r1),
+        .b_select(p1_select), .b_start(p1_start),
+        .map_dpad(mod_sw3[3:0]),
+        .map_a(mod_sw3[7:4]), .map_b(mod_sw1[3:0]),
+        .map_x(mod_sw1[7:4]), .map_y(mod_sw2[7:4]),
+        .map_select(4'd4), .map_start(4'd1),
+        .inhibit(osk_visible),
+        .kev_stb(kev_stb), .kev_press(kev_press),
+        .kev_col(kev_col), .kev_row(kev_row)
+    );
+
+    //! Bring-up switches from the modifier word (the "Bring-up" entries of
+    //! interact.json; take them off the menu for a release, leave them here):
+    //! bit 4 SDRAM read capture alternate, 5 slow bursts.
+    wire g_rd_late    = ~mod_sw0[4];
+    wire g_burst_slow =  mod_sw0[5];
+
+    //! ------------------------------------------------------------------
+    //! Memories: SDRAM carries the disc images and nothing else.
+    //! ------------------------------------------------------------------
+    wire        disc_req, disc_we, disc_drive, disc_ack;
+    wire [19:0] disc_addr;
+    wire  [7:0] disc_din, disc_q;
 
     bbcmicro_mem u_mem (
         .clk(clk_sys), .clk_sdram(clk_sdram), .init(mem_init), .ready(mem_ready),
         .rd_late(g_rd_late), .burst_slow(g_burst_slow),
-        .sram_slow(g_sram_slow), .sram_slow_wr(g_sram_slow_wr),
-        .dl_we(dl_we), .dl_addr(dl_addr), .dl_data(dl_data), .dl_active(ioctl_isROM),
-        .mrom_req(mrom_req), .mrom_addr(mrom_addr), .mrom_ack(mrom_ack), .mrom_q(mrom_q),
-        .srom_req(srom_req), .srom_addr(srom_addr), .srom_ack(srom_ack), .srom_q(srom_q),
-        .gfxl_req(gfxl_req), .gfxl_addr(gfxl_addr), .gfxl_ack(gfxl_ack), .gfxl_q(gfxl_q),
-        .gfxs_req(gfxs_req), .gfxs_addr(gfxs_addr), .gfxs_ack(gfxs_ack), .gfxs_q(gfxs_q),
-        .vram_req(vram_req), .vram_we(vram_we), .vram_addr(vram_addr),
-        .vram_din(vram_din), .vram_ben(vram_ben), .vram_ack(vram_ack), .vram_q(vram_q),
+        .dl_we(disc_dl_we), .dl_addr(disc_dl_addr), .dl_data(disc_dl_data),
+        .dl_drive(disc_dl_drive), .dl_active(is_disc0 || is_disc1),
+        .disc_req(disc_req), .disc_we(disc_we), .disc_drive(disc_drive),
+        .disc_addr(disc_addr), .disc_din(disc_din),
+        .disc_ack(disc_ack), .disc_q(disc_q),
         .SDRAM_DQ(dram_dq), .SDRAM_A(dram_a), .SDRAM_BA(dram_ba),
         .SDRAM_DQML(dram_dqm[0]), .SDRAM_DQMH(dram_dqm[1]),
         .SDRAM_CLK(dram_clk), .SDRAM_CKE(dram_cke),
         .SDRAM_nRAS(dram_ras_n), .SDRAM_nCAS(dram_cas_n), .SDRAM_nWE(dram_we_n),
-        .SDRAM_nCS(),
-        .sram_a(sram_a), .sram_dq(sram_dq),
-        .sram_oe_n(sram_oe_n), .sram_we_n(sram_we_n),
-        .sram_ub_n(sram_ub_n), .sram_lb_n(sram_lb_n)
+        .SDRAM_nCS()
     );
 
     wire        g_pix_ce, g_hs, g_vs, g_de, g_vb, g_hb;
@@ -976,6 +970,8 @@ module core_top
     wire signed [15:0] g_snd;
     wire        g_halted, g_watchdog;
     wire [23:1] g_dbg_addr;  wire g_dbg_bus, g_dbg_wait;
+    wire [15:0] g_rom_sum;   wire [24:0] g_rom_count;
+    wire  [7:0] g_fdc;
 
     //! The dot enable's phase is pinned to clk_vid: the clock's own toggle,
     //! seen through two system-clock flops, restarts the core's dot divider
@@ -989,30 +985,35 @@ module core_top
     wire pix_sync = vt_s ^ vt_d;
 
     bbcmicro_core u_core (
-        //! pause_core is the Pocket's menu being open.  It used to be ORed into
-        //! reset here, which held the whole board in reset while the menu was
-        //! up and booted it from scratch when the menu closed.
+        //! pause_core is the Pocket's menu being open.  It must never reach
+        //! reset: ORed in, it holds the machine in reset while the menu is up
+        //! and reboots it when the menu closes.
         .clk(clk_sys), .rst(g_reset), .pause(pause_core), .pix_sync(pix_sync),
-        .mrom_req(mrom_req), .mrom_addr(mrom_addr), .mrom_ack(mrom_ack), .mrom_q(mrom_q),
-        .srom_req(srom_req), .srom_addr(srom_addr), .srom_ack(srom_ack), .srom_q(srom_q),
-        .gfxl_req(gfxl_req), .gfxl_addr(gfxl_addr), .gfxl_ack(gfxl_ack), .gfxl_q(gfxl_q),
-        .gfxs_req(gfxs_req), .gfxs_addr(gfxs_addr), .gfxs_ack(gfxs_ack), .gfxs_q(gfxs_q),
-        .vram_req(cv_req), .vram_we(cv_we), .vram_addr(cv_addr),
-        .vram_din(cv_din), .vram_ben(cv_ben), .vram_ack(cv_ack), .vram_q(vram_q),
-        .dswa(g_dswa), .dswb(g_dswb),
-        .in0(g_in0), .in1(g_in1), .in2(g_in2),
+        .dl_we(rom_we), .dl_addr(rom_addr), .dl_data(rom_data),
+        .disc_req(disc_req), .disc_we(disc_we), .disc_drive(disc_drive),
+        .disc_addr(disc_addr), .disc_din(disc_din),
+        .disc_ack(disc_ack), .disc_q(disc_q),
+        .disc_present(disc_present), .disc_dsided(disc_dsided),
+        .kev_stb(kev_stb), .kev_press(kev_press),
+        .kev_col(kev_col), .kev_row(kev_row), .kev_clear(osk_visible),
+        .key_break(key_break), .links(g_links),
+        .adc_ch0(12'h800), .adc_ch1(12'h800), .adc_fire_n(2'b11),
         .rgb(g_rgb), .hsync(g_hs), .vsync(g_vs),
         .hblank(g_hb), .vblank(g_vb), .pix_ce(g_pix_ce), .de(g_de),
         .snd(g_snd),
-        .dbg_halted(g_halted), .dbg_addr(g_dbg_addr), .dbg_bus(g_dbg_bus), .dbg_wait(g_dbg_wait),
-        .watchdog_reset(g_watchdog)
+        .dbg_halted(g_halted), .dbg_addr(g_dbg_addr),
+        .dbg_bus(g_dbg_bus), .dbg_wait(g_dbg_wait),
+        .watchdog_reset(g_watchdog),
+        .dbg_rom_sum(g_rom_sum), .dbg_rom_count(g_rom_count), .dbg_fdc(g_fdc),
+        .trc_cen(), .trc_addr(), .trc_data(), .trc_rnw(), .trc_sync(),
+        .trc_irq(), .trc_dbg()
     );
 
     //! Screen shape from the Interact menu.  The aspect in video.json
-    //! describes the raster BEFORE the scaler rotates it, so with a rotation
-    //! of 90 or 270 the shape that reaches the panel is aspect_h:aspect_w
-    //! (METHODOLOGY section 5.5).  Preset 0 is the default and is what the
-    //! core shows before the Pocket has written the menu word.
+    //! describes the raster BEFORE the scaler rotates it (METHODOLOGY 5.5);
+    //! this core does not rotate, so it is the shape as it stands.  Preset 0
+    //! is the default and is what the core shows before the Pocket has
+    //! written the menu word.
     wire [1:0] aspect_sel = mod_sw0[2:1];
     assign video_preset = (aspect_sel == 2'd1) ? 3'd1 : 3'd0;
 
@@ -1021,82 +1022,54 @@ module core_top
     //! the modifier word's bit 3.  Four rows of 32 squares on the bottom
     //! sixteen lines, green = 1, bit 31 of each row leftmost.  The raster
     //! runs while the machine is held in reset, so a black Pocket can still
-    //! be read.  KEEP docs/bringup.md IN STEP WITH THIS: it is what the
-    //! person holding the Pocket reads from.
+    //! be read.  KEEP docs/bringup.md IN STEP WITH THIS.
     //!   row 0  1010 1010 | frame count | pll locked, memory ready,
-    //!          downloading, all-complete, loaded, core reset, CPU halted,
-    //!          watchdog seen | in2
-    //!   row 1  first-fault capture: vector | code address before it
-    //!   row 2  first word of the program ROM | first sound ROM byte |
-    //!          first graphics byte -- the path, not the image
-    //!   row 3  the SRAM self-test: A55A 5AA5 is a pass
+    //!          downloading, all-complete, loaded, core reset, CPU stretched,
+    //!          watchdog seen | the disc controller's state
+    //!   row 1  the CPU's address bus, and whether it is fetching an opcode
+    //!   row 2  the checksum of the ROM image as it went into block RAM, and
+    //!          how many bytes arrived -- the image, not just the path
+    //!   row 3  what is in each drive, and the image's own size
     //! ------------------------------------------------------------------
     wire        ovl_en = mod_sw0[3];
     logic [7:0] ovl_frames;
     logic       ovl_wdog;
     logic       vb_d;
+    wire        g_vb_rise = g_vb && !vb_d;   // one pulse a frame
     always_ff @(posedge clk_sys) begin
         vb_d <= g_vb;
-        if (g_vb && !vb_d) ovl_frames <= ovl_frames + 8'd1;
+        if (g_vb_rise) ovl_frames <= ovl_frames + 8'd1;
         if (g_watchdog) ovl_wdog <= 1'b1;
     end
-
-    //! the first word each memory answered with, latched once
-    logic [15:0] first_prog;  logic first_prog_v;
-    logic  [7:0] first_snd;   logic first_snd_v;
-    logic  [7:0] first_gfx;   logic first_gfx_v;
-    always_ff @(posedge clk_sys) begin
-        if (mem_init) begin first_prog_v <= 1'b0; first_snd_v <= 1'b0; first_gfx_v <= 1'b0; end
-        else begin
-            if (mrom_ack && !first_prog_v) begin first_prog <= mrom_q; first_prog_v <= 1'b1; end
-            if (srom_ack && !first_snd_v)  begin first_snd  <= srom_q; first_snd_v  <= 1'b1; end
-            if (gfxl_ack && !first_gfx_v)  begin first_gfx  <= gfxl_q[31:24]; first_gfx_v <= 1'b1; end
-        end
-    end
-
-    //! First-fault capture (rtl/dbg_fault.sv): the first exception vector a
-    //! 68000 fetches that a healthy run never does, and where it was.  It
-    //! reads all zeros with no CPU on the bus.  For another CPU, write the
-    //! equivalent -- "the first thing a healthy run never does" -- and prove
-    //! it quiet on a healthy boot and firing on a sick one in simulation
-    //! before it costs a flash cycle.
-    logic        flt_rst;
-    always_ff @(posedge clk_sys) flt_rst <= g_reset;
-    wire         flt_hit;
-    wire   [7:0] flt_vec, flt_n;
-    wire  [23:0] flt_pc0, flt_pc1, flt_io;
-    dbg_fault u_fault (
-        .clk(clk_sys), .rst(flt_rst), .addr(g_dbg_addr), .bus(g_dbg_bus),
-        .hit(flt_hit), .vec(flt_vec), .pc0(flt_pc0), .pc1(flt_pc1), .io(flt_io), .faults(flt_n)
-    );
 
     wire [127:0] ovl_status = {
         // row 0: the marker first, so a reading can check its own alignment
         8'b1010_1010, ovl_frames,
         pll_locked_sys, mem_ready, ioctl_download, allc_s,
-        loaded, g_reset, g_halted, ovl_wdog,
-        g_in2,
-        // row 1: the vector first fetched in error (00 = none), then the code
-        // address just before it
-        flt_vec, flt_pc0,
-        // row 2: the first word each ROM region handed back
-        first_prog, first_snd, first_gfx,
-        // row 3: what came back out of the SRAM.  A55A 5AA5 is a pass.
-        sram_rd0, sram_rd1
+        loaded, g_reset, g_dbg_wait, ovl_wdog,
+        g_fdc,
+        // row 1: where the CPU is
+        1'b0, g_dbg_addr[16:1], g_dbg_bus, g_halted, 13'd0,
+        // row 2: the image as it landed in block RAM
+        g_rom_sum, g_rom_count[15:0],
+        // row 3: the drives
+        6'd0, disc_present, 6'd0, disc_dsided, 16'd0
     };
 
     wire [7:0] ovl_r, ovl_g, ovl_b;
     dbg_overlay ovl (
         .clk(clk_sys), .cen_pix(g_pix_ce), .enable(ovl_en), .de(g_de), .vsync(g_vs),
-        .r_in(g_rgb[23:16]), .g_in(g_rgb[15:8]), .b_in(g_rgb[7:0]),
+        .r_in(osk_active ? (osk_pix ? 8'hFF : 8'h00) : g_rgb[23:16]),
+        .g_in(osk_active ? (osk_pix ? 8'hFF : 8'h00) : g_rgb[15:8]),
+        .b_in(osk_active ? (osk_pix ? 8'hFF : 8'h00) : g_rgb[7:0]),
         .status(ovl_status), .r_out(ovl_r), .g_out(ovl_g), .b_out(ovl_b)
     );
 
     //! ------------------------------------------------------------------
-    //! Video.  The core emits one pixel per 6.857 MHz enable in the 96 MHz
-    //! domain and holds it for the fourteen cycles; clk_vid is the same
-    //! 6.857 MHz from the same PLL, half a system cycle after a system edge,
-    //! so the sample is taken well inside the held value.
+    //! Video.  The core emits one pixel per 16 MHz enable in the 96 MHz
+    //! domain and holds it for the six cycles; clk_vid is the same 16 MHz
+    //! from the same PLL, half a system cycle after a system edge, so the
+    //! sample is taken well inside the held value.
     //! ------------------------------------------------------------------
     reg [7:0] vr_q, vg_q, vb_q;
     reg       vhs_q, vvs_q, vde_q;
@@ -1112,7 +1085,7 @@ module core_top
     assign core_de = vde_q;
 
     //! ------------------------------------------------------------------
-    //! Audio clock domain crossing (METHODOLOGY section 5.4).  The mixer's
+    //! Audio clock domain crossing (METHODOLOGY section 5.4).  The SN76489's
     //! output moves on every 96 MHz clock, so it must never be sampled
     //! directly by the audio side: it is sampled here at 48 kHz, held, and
     //! handed over with a toggle flag, which is the only way the audio

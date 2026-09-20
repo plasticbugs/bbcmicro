@@ -19,6 +19,7 @@
 // CRTC's, so the capture is 640x256 whatever the machine is doing.  Each frame
 // is written as raw RGB for tools/rgb2png.py.
 #include "Vtb_boot_top.h"
+#include "Vtb_boot_top___024root.h"
 #include "verilated.h"
 #include <cstdio>
 #include <cstdlib>
@@ -46,7 +47,7 @@ int main(int argc, char **argv) {
     bool quiet = false;
     double break_ms = -1;
     long trace_n = 0;
-    std::string dumpram;
+    std::string dumpram, disc;
     bool raw = false;
     double trace_from = 0;
     std::vector<double> snaps;
@@ -61,9 +62,11 @@ int main(int argc, char **argv) {
         else if (a == "-break" && i + 1 < argc) break_ms = atof(argv[++i]);
         else if (a == "-quiet") quiet = true;
         else if (a == "-raw") { raw = true; W = 1024; H = 320; }
+        else if (a == "-disc" && i + 1 < argc) disc = argv[++i];
         else if (a == "-dumpram" && i + 1 < argc) dumpram = argv[++i];
         else if (a == "-trace" && i + 1 < argc) trace_n = atol(argv[++i]);
         else if (a == "-trace_from" && i + 1 < argc) trace_from = atof(argv[++i]);
+        else if (a == "-io") io_only = true;   // trace only FRED, JIM and SHEILA
         else if (a == "-snap" && i + 1 < argc) {
             char *s = strdup(argv[++i]);
             for (char *t = strtok(s, ","); t; t = strtok(nullptr, ","))
@@ -96,6 +99,19 @@ int main(int argc, char **argv) {
     }
 
     dut = new Vtb_boot_top;
+    dut->disc_loaded = 0;
+    if (!disc.empty()) {
+        FILE *d = fopen(disc.c_str(), "rb");
+        if (!d) { fprintf(stderr, "cannot open %s\n", disc.c_str()); return 2; }
+        std::vector<uint8_t> img(1 << 20);
+        size_t n = fread(img.data(), 1, img.size(), d);
+        fclose(d);
+        for (size_t k = 0; k < n; k++)
+            dut->rootp->tb_boot_top__DOT__disc_mem[k] = img[k];
+        dut->disc_loaded = 1;
+        printf("drive 0: %s, %zu bytes (%zu tracks of ten 256-byte sectors)\n",
+               disc.c_str(), n, n / 2560);
+    }
     dut->rst = 1; dut->pause = 0;
     dut->dl_we = 0; dut->kev_stb = 0; dut->key_break = 0;
     dut->links = 0;                      // every link open, as MAME's defaults
@@ -140,7 +156,8 @@ int main(int argc, char **argv) {
     while (ms_now() < run_ms) {
         tick();
 
-        if (dut->trc_cen && trace_n > 0 && ms_now() >= trace_from) {
+        if (dut->trc_cen && trace_n > 0 && ms_now() >= trace_from &&
+            (!io_only || (dut->trc_addr >= 0xFC00 && dut->trc_addr < 0xFF00))) {
             printf("%8.3fms  %04X %c %02X  irq=%X ic32=%02X pa=%02X%s\n",
                    ms_now(), dut->trc_addr, dut->trc_rnw ? 'r' : 'w',
                    dut->trc_data, dut->trc_irq, dut->trc_dbg >> 8,
