@@ -905,19 +905,36 @@ module core_top
     //!                hardware reads it
     wire [7:0] g_links = {3'b000, mod_sw2[3:1], 1'b0, mod_sw2[0]};
 
-    wire        kev_stb, kev_press;
-    wire  [3:0] kev_col;
-    wire  [2:0] kev_row;
+    wire        pad_stb, pad_press;
+    wire  [3:0] pad_col;
+    wire  [2:0] pad_row;
 
     //! BREAK is L + R + Start, because it is a reset and wants to be hard to
     //! hit by accident; with the Boot link fitted it boots the disc.
-    wire        key_break = p1_btn_l1 && p1_btn_r1 && p1_start;
+    wire        key_break = (p1_btn_l1 && p1_btn_r1 && p1_start) || osk_break;
 
-    //! The on-screen keyboard is not built yet; when it is, it takes the pad
-    //! (inhibit) and draws over the picture (osk_active/osk_pix).
-    wire        osk_visible = 1'b0;
-    wire        osk_active  = 1'b0;
-    wire        osk_pix     = 1'b0;
+    //! The on-screen keyboard: L + R + Select shows the BBC's own keyboard
+    //! over the picture and the pad types on it (rtl/bbc_osk.sv, checked
+    //! against the panel generator's own bitmap by sim/run_osk.sh).  While it
+    //! is up it owns the pad, and its key events go to the machine in place
+    //! of the pad's mapping.
+    wire        osk_visible, osk_active, osk_pix, osk_break;
+    wire        osk_stb, osk_press;
+    wire  [3:0] osk_col;
+    wire  [2:0] osk_row;
+    wire        osk_chord = p1_btn_l1 && p1_btn_r1 && p1_select;
+
+    bbc_osk u_osk (
+        .clk(clk_sys), .cen_pix(g_pix_ce), .de(g_de), .vsync(g_vs),
+        .chord(osk_chord),
+        .up(p1_up), .down(p1_down), .left(p1_left), .right(p1_right),
+        .press(p1_btn_a || p1_btn_b),
+        .visible(osk_visible),
+        .kev_stb(osk_stb), .kev_press(osk_press),
+        .kev_col(osk_col), .kev_row(osk_row),
+        .key_break(osk_break),
+        .active(osk_active), .pix(osk_pix)
+    );
 
     //! Which key each control presses.  mod_sw3 and mod_sw2's upper nibble
     //! carry the choices; the lists are in rtl/bbc_input.sv and must stay in
@@ -933,9 +950,17 @@ module core_top
         .map_x(mod_sw1[7:4]), .map_y(mod_sw2[7:4]),
         .map_select(4'd4), .map_start(4'd1),
         .inhibit(osk_visible),
-        .kev_stb(kev_stb), .kev_press(kev_press),
-        .kev_col(kev_col), .kev_row(kev_row)
+        .kev_stb(pad_stb), .kev_press(pad_press),
+        .kev_col(pad_col), .kev_row(pad_row)
     );
+
+    //! Only one of the two can be sending at a time -- the pad's mapping is
+    //! inhibited while the keyboard is up -- so the two event streams merge
+    //! without a queue.
+    wire       kev_stb   = pad_stb | osk_stb;
+    wire       kev_press = osk_stb ? osk_press : pad_press;
+    wire [3:0] kev_col   = osk_stb ? osk_col   : pad_col;
+    wire [2:0] kev_row   = osk_stb ? osk_row   : pad_row;
 
     //! Bring-up switches from the modifier word (the "Bring-up" entries of
     //! interact.json; take them off the menu for a release, leave them here):

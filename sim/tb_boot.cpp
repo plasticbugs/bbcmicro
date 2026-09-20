@@ -50,6 +50,8 @@ int main(int argc, char **argv) {
     std::string dumpram, disc;
     bool raw = false;
     double trace_from = 0;
+    bool io_only = false;
+    int links = 0;                       // the startup links: bit 0 is column 2
     std::vector<double> snaps;
     std::vector<KeyEvent> keys;
 
@@ -67,6 +69,7 @@ int main(int argc, char **argv) {
         else if (a == "-trace" && i + 1 < argc) trace_n = atol(argv[++i]);
         else if (a == "-trace_from" && i + 1 < argc) trace_from = atof(argv[++i]);
         else if (a == "-io") io_only = true;   // trace only FRED, JIM and SHEILA
+        else if (a == "-links" && i + 1 < argc) links = (int)strtol(argv[++i], nullptr, 0);
         else if (a == "-snap" && i + 1 < argc) {
             char *s = strdup(argv[++i]);
             for (char *t = strtok(s, ","); t; t = strtok(nullptr, ","))
@@ -114,7 +117,7 @@ int main(int argc, char **argv) {
     }
     dut->rst = 1; dut->pause = 0;
     dut->dl_we = 0; dut->kev_stb = 0; dut->key_break = 0;
-    dut->links = 0;                      // every link open, as MAME's defaults
+    dut->links = links;                  // default: every link open, as MAME's
     for (int i = 0; i < 32; i++) tick();
 
     printf("loading %ld bytes, one per %d clocks, strobe held %d\n", IMG, gap, hold);
