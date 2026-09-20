@@ -15,11 +15,11 @@ implementations that have been running BBC software for a decade
 |---|---|---|
 | 6502 @ 2 MHz, 1 MHz stretching | T65 (`modules/cpu-t65`) | boots the OS, runs BASIC and DFS; stretching is not yet held to a cycle count |
 | 6522 VIA ×2 @ 1 MHz | MikeJ's `m6522` | the OS's keyboard, sound, timers and interrupts all work |
-| HD6845S CRTC | Mike Stirling's `mc6845` | 50.00 Hz, 640×256 of active picture, MODE 7 and MODE 1 seen |
-| Video ULA | Mike Stirling's `vidproc` | — (no frame has been compared with MAME pixel for pixel yet) |
-| SAA5050 teletext | Mike Stirling's `saa5050` + `rtl/bbc_charrom.sv` | the boot screen reads correctly; font from the user's own romset |
+| HD6845S CRTC | Mike Stirling's `mc6845` | 50.00 Hz, 640×256 of active picture, MODE 7, 1 and 2 seen |
+| Video ULA | Mike Stirling's `vidproc` | Exile's MODE 7 title page against MAME's render of it: 89.19% of the lit pixels agree, the rest one-dot stroke edges from sampling 12 teletext dots at 16 |
+| SAA5050 teletext | Mike Stirling's `saa5050` + `rtl/bbc_charrom.sv` | same comparison; font from the user's own romset |
 | SN76489A @ 4 MHz | BeebFpga's `sn76489` | — (nothing has been listened to) |
-| Intel 8271 + disc | `rtl/i8271.sv` | issues and answers exactly the command sequence MAME's DFS sends, traced side by side |
+| Intel 8271 + disc | `rtl/i8271.sv` | issues and answers exactly the command sequence MAME's DFS sends over a whole Exile boot, at the disc's own 64 µs a byte |
 | RAM, MOS, sideways ROMs, font | block RAM, filled by the loader | image byte-identical to MAME's regions (`tools/verify_rom.py`) |
 | on-screen keyboard | `rtl/bbc_osk.sv` | every panel pixel matches the generator, and a press sends the right matrix position (`sim/run_osk.sh`) |
 
@@ -29,26 +29,36 @@ implementations that have been running BBC software for a decade
 
 What is proven, and by what:
 
+- **Exile loads from the disc image and runs**: SHIFT+BREAK reaches the title
+  page, SPACE walks the intro pages, and the game's own F0–F7 menu comes up in
+  a bitmap mode (`artifacts/play/`, `sim/run_boot.sh`)
 - the machine boots to `BBC Computer 32K / Acorn DFS / BASIC / >` in MODE 7,
-  at 50.00 Hz with 640×256 of active picture (`sim/run_boot.sh`)
+  at 50.00 Hz with 640×256 of active picture
+- Exile's title page compared with MAME's render of the same page: 89.19% of
+  the pixels lit in either agree, at the peak of the alignment sweep, and the
+  disagreements are one-dot stroke edges from sampling 12 teletext dots at 16
 - typing through the key matrix works: `MODE 1` typed on the pad's key events
   switches the machine to MODE 1 and redraws the prompt
 - the ROM image the core is fed is byte-identical to the regions MAME loads
   (`tools/verify_rom.py`)
 - the disc controller is asked for, and answers, the same command sequence
-  MAME's DFS issues over a whole Exile boot, and hands back the disc's own
-  catalogue bytes
+  MAME's DFS issues over a whole Exile boot
+- **the whole machine on the Pocket's own memory glue** — real
+  `bbcmicro_mem`, real SDRAM controller, behavioural chip, both images pushed
+  in at the loader's rate — draws a frame identical to the fast bench's, all
+  163,840 pixels (`sim/run_pocket.sh`)
+- every byte of a disc image survives the download FIFO and comes back through
+  the controller's port (`sim/run_mem.sh`)
 - the on-screen keyboard draws pixel-for-pixel what its generator drew
 
 What is **not** proven:
 
-- no frame has been compared with MAME pixel for pixel
 - no sound has been listened to or measured
-- the Exile disc has not yet reached the game's own screen
-- everything between the core's ports and the Pocket's pins — the SDRAM
-  controller, the download path, the video hand-over — is untested in this
-  core: `sim/run_mem.sh` has not been rewritten for this machine's memory
-  map, and `sim/run_pocket.sh` does not exist yet
+- the game has been reached but not played: no frame of Exile's own
+  gameplay has been compared with MAME
+- the teletext path is about three characters later than the bitmap path and
+  one later than the hardware's; the display window is placed to hide it
+  (docs/core-design.md section 6) and the latency itself is untouched
 - the core has never been fitted, timed or flashed
 
 ## Building the ROM image

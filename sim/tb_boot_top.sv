@@ -6,7 +6,8 @@
 // This is the FAST bench (METHODOLOGY section 5.16): the disc controller's
 // SDRAM port is answered from an array here, with no arbitration, no refresh
 // and no download contention.  Everything between the core's ports and the
-// Pocket's pins is unverified until sim/run_pocket.sh exists.
+// Pocket's pins is verified by sim/run_pocket.sh instead, which requires the
+// picture to come out identical to this bench's through the real glue.
 `default_nettype none
 
 module tb_boot_top (

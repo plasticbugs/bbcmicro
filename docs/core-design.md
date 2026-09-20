@@ -107,7 +107,8 @@ way a monitor sees it: `hsync`/`vsync` follow the CRTC, and the active window
 is a fixed number of dots after each sync edge. Whatever the CRTC is
 programmed to do — mid-frame mode changes, palette splits per scanline,
 hardware scrolling, a display window smaller than the screen — reaches the
-panel unchanged, because nothing in the path depends on the mode.
+panel unchanged, because nothing in the path depends on the mode except
+where the window starts, and that is forced (below).
 
 - **Dot rate.** 16 MHz, one output pixel per dot, 640 across the window.
 - **MODE 7.** The SAA5050 runs at its real 12 MHz and the output samples it at
@@ -118,8 +119,33 @@ panel unchanged, because nothing in the path depends on the mode.
   output to 480 active dots and letting the Pocket's scaler relock — keeps the
   glyphs exact but breaks the moment a game puts MODE 7 and a graphics mode in
   the same frame, which BBC software does.
-- **Window.** 640 × 256 by default, positioned from the sync edges so the OS's
-  standard screen lands in the middle.
+- **Window.** 640 × 256, positioned from the sync edges. Where it starts is
+  the one thing that follows the mode, and it has to: the OS programs hsync at
+  character 51 of 64 in MODE 7 and at 98 of 128 in MODE 0-6, so the machine
+  itself puts the teletext picture 32 dots (2 µs) left of a bitmap one — which
+  is why MODE 7 sits left of the other modes on a real monitor. Each path then
+  adds its own delay, measured against MAME's render of the Exile title page
+  and against where the MODE 1 cursor block lands:
+
+  | | CRTC display start | picture | delay |
+  |---|---|---|---|
+  | MODE 0-6 | 240 dots after hsync | 248 | 8 dots, one ULA character |
+  | MODE 7 | 208 | 275 | 67 dots, about four characters |
+
+  Both pictures are exactly 640 dots wide and they end up 27 dots apart, so no
+  single 640-dot window holds both: with one window, four characters of every
+  teletext line fell off the right. `H_START` therefore follows the video
+  ULA's own teletext bit, sampled at the hsync edge so it cannot move inside a
+  line. The teletext path's four characters of delay are three more than the
+  bitmap path's and one more than the hardware's; the window hides that, and
+  it has not been chased down.
+- **Phase.** The clock enables are gated by reset. Without that they fire on
+  every 96 MHz clock while reset is held (the dividers sit at zero and the
+  enable is `d == 0`), and the video ULA's `CLKEN_COUNT` — which its `nRESET`
+  does not clear — free-runs through the download and comes out at a phase
+  that depends on how long the loader took. Measured before the fix: the same
+  frame sampled one dot differently between two benches whose downloads
+  differed by 1.6M clocks, and reproducible with 14 extra clocks of reset.
 
 ## 7. Bring-up
 
