@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
     long pc_lo = -1, pc_hi = -1;         // trace only this address range
     bool wonly = false;                  // and only the writes
     int links = 0;                       // the startup links: bit 0 is column 2
+    int predelay = 0;                    // extra clocks held in reset
     std::vector<double> snaps;
     std::vector<KeyEvent> keys;
 
@@ -75,6 +76,7 @@ int main(int argc, char **argv) {
         else if (a == "-trace_from" && i + 1 < argc) trace_from = atof(argv[++i]);
         else if (a == "-io") io_only = true;   // trace only FRED, JIM and SHEILA
         else if (a == "-wonly") wonly = true;
+        else if (a == "-predelay" && i + 1 < argc) predelay = atoi(argv[++i]);
         else if (a == "-pc" && i + 1 < argc) {
             sscanf(argv[++i], "%lx,%lx", &pc_lo, &pc_hi);
         }
@@ -139,7 +141,7 @@ int main(int argc, char **argv) {
     printf("image checksum in the core: %04X over %u bytes\n",
            dut->dbg_rom_sum, (unsigned)dut->dbg_rom_count);
 
-    for (int i = 0; i < 64; i++) tick();
+    for (int i = 0; i < 64 + predelay; i++) tick();
     dut->rst = 0;
     tcount = 0;                          // time runs from the release of reset
 

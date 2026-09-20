@@ -12,6 +12,11 @@
 module tb_pocket_top (
     input  logic        clk,
     input  logic        rst,
+    input  logic        mem_init,   // the real core drives this from the PLL
+                                    // lock, not from the machine's reset: the
+                                    // controller has to come ready before an
+                                    // image can be pushed into it, and the
+                                    // machine is held in reset until it is
     input  logic        pause,
 
     // the ROM image, straight into the core's block RAM
@@ -61,7 +66,7 @@ module tb_pocket_top (
     wire        SDRAM_CKE, SDRAM_CLK;
 
     bbcmicro_mem u_mem (
-        .clk(clk), .clk_sdram(clk), .init(rst), .ready(mem_ready),
+        .clk(clk), .clk_sdram(clk), .init(mem_init), .ready(mem_ready),
         .rd_late(1'b1), .burst_slow(1'b0),
         .dl_we(disc_dl_we), .dl_addr(disc_dl_addr), .dl_data(disc_dl_data),
         .dl_drive(disc_dl_drive), .dl_active(disc_dl_active),
