@@ -47,7 +47,8 @@ int main(int argc, char **argv) {
     bool quiet = false;
     double break_ms = -1;
     long trace_n = 0;
-    std::string dumpram, disc;
+    std::string dumpram, disc, bustrace;
+    long bus_n = 400000;
     bool raw = false;
     double trace_from = 0;
     bool io_only = false;
@@ -66,6 +67,8 @@ int main(int argc, char **argv) {
         else if (a == "-quiet") quiet = true;
         else if (a == "-raw") { raw = true; W = 1024; H = 320; }
         else if (a == "-disc" && i + 1 < argc) disc = argv[++i];
+        else if (a == "-bus" && i + 1 < argc) bustrace = argv[++i];
+        else if (a == "-bus_n" && i + 1 < argc) bus_n = atol(argv[++i]);
         else if (a == "-dumpram" && i + 1 < argc) dumpram = argv[++i];
         else if (a == "-trace" && i + 1 < argc) trace_n = atol(argv[++i]);
         else if (a == "-trace_from" && i + 1 < argc) trace_from = atof(argv[++i]);
@@ -143,6 +146,12 @@ int main(int argc, char **argv) {
     // is what the frozen-state gate will compare against MAME's dump.
     std::vector<uint8_t> shadow(32768, 0);
 
+    // The CPU's bus, in the format tools/bus_trace.lua writes from MAME, so
+    // that tools/diff_bus.py can hold this 6502 to that one transaction by
+    // transaction (METHODOLOGY section 4).
+    FILE *bus = bustrace.empty() ? nullptr : fopen(bustrace.c_str(), "w");
+    long bus_count = 0;
+
     std::vector<uint8_t> fb(W * H * 3, 0);
     long frame = 0, x = 0, y = -1, active = 0, active_prev = 0;
     int prev_vs = 0, prev_de = 0, prev_hs = 0;
@@ -172,6 +181,13 @@ int main(int argc, char **argv) {
                    dut->trc_dbg & 0xFF,
                    dut->trc_sync ? "  <- opcode" : "");
             trace_n--;
+        }
+        if (bus && dut->trc_cen && bus_count < bus_n) {
+            fprintf(bus, "%c %04X %02X\n", dut->trc_rnw ? 'R' : 'W',
+                    dut->trc_addr, dut->trc_data);
+            if (++bus_count == bus_n) { fclose(bus); bus = nullptr;
+                printf("bus trace: %ld transactions -> %s\n", bus_count,
+                       bustrace.c_str()); }
         }
         if (dut->trc_cen && !dut->trc_rnw && dut->trc_addr < 0x8000)
             shadow[dut->trc_addr] = dut->trc_data;
@@ -232,6 +248,10 @@ int main(int argc, char **argv) {
                "%ld clocks stretched\n",
                ms_now(), frame, frame_ms, frame_ms > 0 ? 1000.0 / frame_ms : 0.0,
                fetches, stretched);
+    if (bus) {
+        fclose(bus);
+        printf("bus trace: %ld transactions -> %s\n", bus_count, bustrace.c_str());
+    }
     if (!dumpram.empty()) {
         FILE *o = fopen(dumpram.c_str(), "wb");
         if (o) {
