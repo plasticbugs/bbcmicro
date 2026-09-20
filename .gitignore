@@ -32,6 +32,10 @@ tmp/
 # report next to them is what gets committed.
 artifacts/audio/*.wav
 
+# tools/vhdl2v.sh's conversion logs: regenerated with the Verilog beside them
+modules/*/gen/*.log
+modules/*/work/
+
 # sim/lint.sh builds its waiver file to match the installed Verilator
 sim/waivers.vlt
 sim/obj_*.log

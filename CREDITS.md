@@ -42,6 +42,32 @@ oracle every core here is checked against, and `ref/mame/` holds the exact
 files a core was written from, fetched verbatim. Credit the specific driver's
 authors in the core's own README and in `docs/hardware.md`.
 
+## The BBC Micro's own
+
+The machine inside this core is assembled from work by people who wrote it
+long before there was a Pocket to put it on. `modules/VENDOR.md` has the
+commits and the licences; this is who they are.
+
+* **Mike Stirling** — the BBC Micro FPGA implementation this core's video and
+  I/O chips come from: the **HD6845S CRTC**, the **Ferranti video ULA** and the
+  **SAA5050 teletext generator** are his, written in 2011 and still the
+  reference implementations.
+* **David Banks** ([@hoglet67](https://github.com/hoglet67)) — **BeebFpga**,
+  which maintains and extends that work, and is where these files were taken
+  from. The 6845's later fixes are his.
+* **MikeJ** ([FPGAArcade](https://www.fpgaarcade.com/)) — the **MOS 6522 VIA**,
+  written for his VIC-20 model and used by half the cores in this hobby.
+* **Daniel Wallner** and the **T65** maintainers, by way of MiSTer's BBC Micro
+  core — the **6502**.
+* **Sorgelig** and the MiSTer BBCMicro maintainers, whose port is the reason
+  T65's BBC-ready copy exists and was the first place to look when a signal's
+  intent was unclear.
+* **Nigel Barnes** and **Gordon Jefferyes**, who wrote and maintain MAME's BBC
+  Micro driver — `ref/mame/acorn/` is the specification this core is written
+  from, and its comments answered questions no datasheet does.
+* **Acorn Computers**, for the machine, and for a design documented well
+  enough that it can be rebuilt forty-five years later.
+
 ## The house style
 
 `METHODOLOGY.md` was written across the Xenophobe, Time Pilot, Gaiapolis,

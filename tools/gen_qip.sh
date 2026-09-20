@@ -26,6 +26,13 @@ for d in $(ls -d modules/*/ 2>/dev/null | sort); do
     for f in $(cd "$d" && ls *.v 2>/dev/null | sort); do
         echo "set_global_assignment -name VERILOG_FILE [file join \$::quartus(qip_path) \"../modules/$m/$f\"]"
     done
+    # Vendored VHDL is converted to Verilog by tools/vhdl2v.sh and it is the
+    # conversion that is built, here and in the benches, so that what is
+    # simulated is what is synthesised (modules/VENDOR.md).  The .vhd beside
+    # it is the licence and the provenance, and Quartus never sees it.
+    for f in $(cd "$d" && ls gen/*.v 2>/dev/null | sort); do
+        echo "set_global_assignment -name VERILOG_FILE [file join \$::quartus(qip_path) \"../modules/$m/$f\"]"
+    done
 done
 } > "$out"
 echo "wrote $out"
