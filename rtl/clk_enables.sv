@@ -45,7 +45,19 @@ module clk_enables (
         else d16 <= d16 + 3'd1;
     end
     assign phase   = d16;
-    assign cen_16m = (d16 == 3'd0);
+    // Gated by rst, and that matters.  Held at zero, `d16 == 0` is true on
+    // every clock, so the enable fires at 96 MHz for as long as reset lasts.
+    // The video ULA's CLKEN_COUNT -- the character phase the whole machine's
+    // 1 MHz timing hangs off -- is not reset by its nRESET, so it ran through
+    // the download and came out at whatever phase the download's length left
+    // it in, while the teletext divider below started from zero.  Measured:
+    // the fast bench and the Pocket bench, whose downloads differ by 1.6M
+    // clocks, drew the same Exile title page with 4,921 of 163,840 pixels
+    // sampled one dot apart; holding the fast bench's reset 14 clocks longer
+    // reproduced the Pocket bench's frame exactly, pixel for pixel.  On
+    // hardware the loader's length varies with the images, so the teletext
+    // picture would have been sampled differently from load to load.
+    assign cen_16m = !rst && (d16 == 3'd0);
 
     // 96 / 8 = 12 MHz for the teletext generator.  It is not a division of
     // the 16 MHz dot clock, which is the whole reason MODE 7 needs its own.
@@ -54,7 +66,7 @@ module clk_enables (
         if (rst) d12 <= 3'd0;
         else d12 <= d12 + 3'd1;
     end
-    assign cen_12m = (d12 == 3'd0);
+    assign cen_12m = !rst && (d12 == 3'd0);
 endmodule
 
 `default_nettype wire
