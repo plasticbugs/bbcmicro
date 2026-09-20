@@ -59,12 +59,22 @@ module i8271 (
     output logic  [7:0] dbg
 );
     // --------------------------------------------------------------- timing
-    localparam int BYTE_US = 32;        // 250 kbit/s FM
+    // 250 kbit/s is the FM *cell* rate, and FM spends one cell on a clock bit
+    // for every data bit: 16 cells, 64us, per byte (MAME's i8271 sets
+    // cur_rate = 250000 and live_write_fm shifts out 16 cells).  At 32us the
+    // discs read, and the catalogue arrived byte-perfect, but DFS's NMI
+    // handler at &0D00 needs ~70 cycles -- about 38us -- to store a byte and
+    // advance its pointer and counts, so every byte's request landed inside
+    // the previous byte's handler, at the BNE on &A3.  The transfer ran as
+    // one long chain of nested NMIs: the data was right, the bookkeeping at
+    // the end of each sector never ran, and DFS carried the catalogue read
+    // on to track 1 instead of opening !BOOT.
+    localparam int BYTE_US = 64;        // 250 kcell/s FM = 125 kbit/s data
     localparam int STEP_US = 2000;      // per track, while seeking
     localparam int SETTLE_US = 8000;    // head settling after a seek
-    localparam int END_US = 8;          // between the last byte and the
-                                        // completion interrupt, so the CPU
-                                        // sees NMI go low between them
+    localparam int END_US = 2 * BYTE_US; // the two CRC bytes the chip reads
+                                        // after the last data byte, before
+                                        // it signals completion
 
     // ------------------------------------------------------------- results
     localparam logic [7:0] ERR_NONE = 8'h00;
@@ -408,8 +418,21 @@ module i8271 (
                 // cleared, the low lasts 10 ns and the CPU, which samples NMI
                 // once per cycle, never sees it: DFS read the catalogue, got
                 // no completion interrupt, and the boot stopped there with
-                // the controller still holding its result.  The real chip
-                // takes microseconds to finish a sector; so does this.
+                // the controller still holding its result.
+                //
+                // How long that low lasts matters just as much.  The NMI
+                // handler at &0D00 stores the byte, THEN advances the buffer
+                // pointer and decrements the count; if completion arrives
+                // inside that tail, the 6502 takes it between the store and
+                // the INC, and DFS's completion path copies a pointer and a
+                // count that are one byte short.  Measured with END_US = 8:
+                // the catalogue landed at &0E00 byte-perfect, DFS recorded
+                // "&0FFF, 1 to go", and carried the transfer on to track 1
+                // (53 01 00 22) instead of opening !BOOT.  The real chip
+                // reads the sector's two CRC bytes before it signals -- 64us
+                // at 250 kbit/s FM, MAME's live machine does the same
+                // (i8271.cpp, slot < sector_size+2) -- which is far longer
+                // than the handler's tail.
                 X_RD_OFFER: if (!drq) begin
                     us_left <= 16'(END_US);
                     xs      <= X_END;

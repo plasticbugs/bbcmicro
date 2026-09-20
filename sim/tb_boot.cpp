@@ -53,6 +53,7 @@ int main(int argc, char **argv) {
     double trace_from = 0;
     bool io_only = false;
     long pc_lo = -1, pc_hi = -1;         // trace only this address range
+    bool wonly = false;                  // and only the writes
     int links = 0;                       // the startup links: bit 0 is column 2
     std::vector<double> snaps;
     std::vector<KeyEvent> keys;
@@ -73,6 +74,7 @@ int main(int argc, char **argv) {
         else if (a == "-trace" && i + 1 < argc) trace_n = atol(argv[++i]);
         else if (a == "-trace_from" && i + 1 < argc) trace_from = atof(argv[++i]);
         else if (a == "-io") io_only = true;   // trace only FRED, JIM and SHEILA
+        else if (a == "-wonly") wonly = true;
         else if (a == "-pc" && i + 1 < argc) {
             sscanf(argv[++i], "%lx,%lx", &pc_lo, &pc_hi);
         }
@@ -174,7 +176,8 @@ int main(int argc, char **argv) {
 
         if (dut->trc_cen && trace_n > 0 && ms_now() >= trace_from &&
             (!io_only || (dut->trc_addr >= 0xFC00 && dut->trc_addr < 0xFF00)) &&
-            (pc_lo < 0 || (dut->trc_addr >= pc_lo && dut->trc_addr <= pc_hi))) {
+            (pc_lo < 0 || (dut->trc_addr >= pc_lo && dut->trc_addr <= pc_hi)) &&
+            (!wonly || !dut->trc_rnw)) {
             printf("%8.3fms  %04X %c %02X  irq=%X ic32=%02X pa=%02X%s\n",
                    ms_now(), dut->trc_addr, dut->trc_rnw ? 'r' : 'w',
                    dut->trc_data, dut->trc_irq, dut->trc_dbg >> 8,
