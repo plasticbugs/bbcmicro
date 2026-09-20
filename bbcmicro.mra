@@ -1,27 +1,55 @@
 <misterromdescription>
     <!--
-        The ROM recipe.  tools/mra_build.py reads this and your MAME romset and
-        writes bbcmicro.rom; any standard MRA tool does the same.
+        The ROM recipe.  tools/mra_build.py reads this and your MAME `bbcb`
+        romset and writes bbcmicro.rom; any standard MRA tool does the same.
 
-        One <part> per ROM file, in image order.  Interleaved ROMs go inside an
-        <interleave output="16"> (or 32): each `map` digit is one byte of the
-        output word, left to right, and its value is the 1-based byte of THIS
-        part that lands there, 0 for none.  So two byte-wide ROMs making
-        big-endian 16-bit words are map="10" (this part is the first byte) and
-        map="01".  Check the result against the bytes MAME hands the CPU with
-        tools/verify_rom.py; do not reason about it.  METHODOLOGY section 5.7.
+        The image is laid out so that each region is byte-identical to the
+        region MAME loads (tools/verify_rom.py proves it):
 
-        The image layout must match target/pocket/bbcmicro_mem.sv and
-        sim/tb_mem.cpp.
+          0x00000  64K  sideways ROM sockets, 16K each, same as MAME's "rom"
+                        region, of which a Model B decodes the first four:
+                          socket 0  DNFS 1.20, the disc filing system
+                          socket 1  empty, FF
+                          socket 2  empty, FF
+                          socket 3  BASIC II, the language
+          0x10000  16K  MOS 1.20, same as MAME's "mos" region
+          0x14000   1K  SAA5050 character ROM, 960 bytes padded with FF,
+                        same as MAME's "saa5050:chargen" from 0x140 up
+
+        Total 0x14400 = 82,944 bytes, all of which lives in block RAM in the
+        core; the disc image is a separate data slot and never appears here.
+        The layout must match target/pocket/bbcmicro_mem.sv, rtl/bbc_rom.sv
+        and sim/tb_mem.cpp.  docs/core-design.md section 3.
+
+        Two notes on names and dumps, because romsets vary:
+
+        * Merged sets often carry DNFS 1.20 as "dnfs120-201666.rom" rather
+          than MAME's "dnfs120.rom".  The builder falls back to finding a
+          part by CRC when the name is absent, so either works.
+        * MAME's verified SAA5050 dump is CRC 201490f3 ("from datasheet
+          listing and decap").  Many sets carry 6298fc0b instead, which is a
+          plausible teletext font and is what MAME will use if that is what
+          you have, so the core and MAME agree either way; but only 201490f3
+          is the font a real SAA5050 has.  Both are accepted here, and
+          verify_rom.py says which one you built with.
     -->
-    <name>BBC Micro</name>
+    <name>BBC Micro Model B</name>
     <setname>bbcmicro</setname>
     <rbf>bbcmicro</rbf>
-    <mameversion>0000</mameversion>
-    <year>1980</year>
-    <manufacturer>MANUFACTURER</manufacturer>
-    <switches default="ff,ff"/>
-    <rom index="0" zip="bbcmicro.zip" md5="none">
-        <!-- <part name="prog0.bin" crc="00000000"/> -->
+    <mameversion>0288</mameversion>
+    <year>1981</year>
+    <manufacturer>Acorn Computers</manufacturer>
+    <rom index="0" zip="bbcb.zip" md5="250c35fe94b9fcce90e48bd584961743">
+        <!-- sideways socket 0: Acorn DNFS 1.20 (DFS 1.20 plus NFS 3.34) -->
+        <part name="dnfs120.rom" crc="8ccd2157"/>
+        <!-- sockets 1 and 2: empty, and an empty socket reads FF -->
+        <part repeat="32768">FF</part>
+        <!-- sideways socket 3: BASIC II -->
+        <part name="basic2.rom" crc="79434781"/>
+        <!-- the OS -->
+        <part name="os12.rom" crc="3c14fc70"/>
+        <!-- SAA5050 teletext character generator, 96 characters of 10 rows -->
+        <part name="saa5050" crc="201490f3|6298fc0b"/>
+        <part repeat="64">FF</part>
     </rom>
 </misterromdescription>

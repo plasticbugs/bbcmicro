@@ -10,7 +10,12 @@ verifies the finished image against the md5 recorded in the .mra.
 Supported MRA elements (the standard MiSTer subset):
 
   <part name="x" crc="y" [offset="0x1000" length="0x800"]/>
-        a ROM, or a slice of one.
+        a ROM, or a slice of one.  `crc` may list several acceptable CRC32s
+        separated by "|" -- some ROMs have more than one dump in circulation
+        and the core runs on either.  If the romset has no member of that
+        name, the part is looked up by CRC instead, because merged sets
+        rename files (MAME's `dnfs120.rom` is `dnfs120-201666.rom` in
+        several); the builder says which file it used.
   <part repeat="N">FF</part>
         a run of literal bytes.
   <interleave output="16"> <part name=.. crc=.. map="01"/> ... </interleave>
@@ -68,14 +73,23 @@ def get_part(parts, node):
     name = node.get('name')
     if name is None:
         return literal_bytes(node)
+    wanted = [int(c, 16) for c in (node.get('crc') or '').split('|') if c]
     data = parts.get(name.lower())
     if data is None:
+        # merged romsets rename files; find it by content instead
+        for member, blob in sorted(parts.items()):
+            if (zlib.crc32(blob) & 0xffffffff) in wanted:
+                print(f'  note: {name} not in the romset; using {member}, '
+                      f'which has the right crc')
+                data, name = blob, member
+                break
+    if data is None:
         sys.exit(f'error: {name} is missing from the romset')
-    crc = node.get('crc')
-    if crc:
+    if wanted:
         actual = zlib.crc32(data) & 0xffffffff
-        if actual != int(crc, 16):
-            sys.exit(f'error: {name} has crc {actual:08x}, expected {crc}')
+        if actual not in wanted:
+            sys.exit(f'error: {name} has crc {actual:08x}, expected '
+                     + ' or '.join(f'{c:08x}' for c in wanted))
     offset = int(node.get('offset', '0'), 0)
     length = node.get('length')
     if length is not None:
@@ -147,8 +161,11 @@ def build(mra_path, romset_path, verbose=False):
         image += data
     expected = rom.get('md5')
     actual = hashlib.md5(image).hexdigest()
-    if expected and expected.lower() != 'none' and expected.lower() != actual:
-        sys.exit(f'error: built image md5 {actual} does not match the .mra ({expected})')
+    if expected and expected.lower() != 'none':
+        accepted = [m.strip().lower() for m in expected.split('|')]
+        if actual not in accepted:
+            sys.exit(f'error: built image md5 {actual} does not match the .mra '
+                     f'({expected})')
     return bytes(image), actual
 
 
