@@ -55,8 +55,10 @@ module bbcmicro_mem (
     output logic        SDRAM_nCS, SDRAM_nWE, SDRAM_nRAS, SDRAM_nCAS,
     output logic        SDRAM_CKE, SDRAM_CLK
 );
-    // Each drive gets 512 KB, which holds a double-sided 400 KB image, and the
-    // base is a power of two so the drive number is a bit of the address.
+    // Each drive gets 1 MB of the SDRAM, which holds any DFS image with room
+    // to spare, and the base is a power of two so the drive number is simply
+    // a bit of the address -- the same bit on the way in and on the way out,
+    // which is what the memory gate checks.
     // ------------------------------------------------------------ download
     localparam int DLQ = 64;
     logic [39:0] dlq [DLQ];             // {word address [24:1], data [15:0]}
@@ -70,7 +72,7 @@ module bbcmicro_mem (
     // The image is a byte stream and the SDRAM is 16 bits wide, so bytes are
     // paired little-endian: byte 2n in the low half, byte 2n+1 in the high
     // half, which is the order the disc controller reads them back in.
-    wire [24:1] dl_target = {5'd0, dl_drive, dl_addr[18:1]};
+    wire [24:1] dl_target = {4'd0, dl_drive, dl_addr[19:1]};
 
     always_ff @(posedge clk) begin
         dl_we_d <= dl_we;
@@ -140,7 +142,7 @@ module bbcmicro_mem (
         .b_we(1'b0), .b_wdata(16'd0), .b_be(2'b00), .b_widx()
     );
 
-    wire _unused = &{1'b0, dl_active, dl_addr[24:19], 1'b0};
+    wire _unused = &{1'b0, dl_active, dl_addr[24:20], 1'b0};
 endmodule
 
 `default_nettype wire

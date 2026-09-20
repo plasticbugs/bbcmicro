@@ -12,6 +12,28 @@
                     "rom"
                 ],
                 "address": "0x00000000"
+            },
+            {
+                "name": "Drive 0",
+                "id": 1,
+                "required": false,
+                "parameters": "0x109",
+                "extensions": [
+                    "ssd",
+                    "dsd"
+                ],
+                "address": "0x00000000"
+            },
+            {
+                "name": "Drive 1",
+                "id": 2,
+                "required": false,
+                "parameters": "0x109",
+                "extensions": [
+                    "ssd",
+                    "dsd"
+                ],
+                "address": "0x00000000"
             }
         ]
     }

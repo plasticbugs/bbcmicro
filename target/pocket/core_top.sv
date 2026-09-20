@@ -899,11 +899,13 @@ module core_top
     wire p1_b1 = p1_btn_a, p1_b2 = p1_btn_b, p1_b3 = p1_btn_x, p1_b4 = p1_btn_y;
 
     //! The startup links the OS reads out of the keyboard's row 0
-    //! (docs/hardware.md 3.1).  Bit 0 is column 2.  Fitted reads as pressed:
-    //!   mod_sw2[0]  Boot: fitted means BREAK alone boots the disc
-    //!   mod_sw2[3:1] the screen mode the OS starts in, inverted as the
-    //!                hardware reads it
-    wire [7:0] g_links = {3'b000, mod_sw2[3:1], 1'b0, mod_sw2[0]};
+    //! (docs/hardware.md 3.1): bit 0 is column 2, and a fitted link reads as
+    //! a key down.  Only the Boot link is on the menu, because only it has
+    //! been shown to do anything on this core -- the OS's reset code reads
+    //! column 6 at DA03-DA1D and DFS's service call 3 handler acts on it.
+    //! The screen-mode links stay open, which is what makes a bare machine
+    //! start in MODE 7.
+    wire [7:0] g_links = {3'b000, mod_sw2[0], 4'b0000};   // column 6 = Boot
 
     wire        pad_stb, pad_press;
     wire  [3:0] pad_col;

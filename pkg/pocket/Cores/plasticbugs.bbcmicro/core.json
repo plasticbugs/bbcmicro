@@ -6,11 +6,11 @@
         "bbcmicro"
       ],
       "shortname": "bbcmicro",
-      "description": "BBC Micro (MANUFACTURER, YEAR) arcade core",
+      "description": "BBC Microcomputer Model B (Acorn, 1981)",
       "author": "plasticbugs",
-      "url": "https://github.com/plasticbugs/analogue-pocket-bbcmicro",
-      "version": "0.0.1",
-      "date_release": "1970-01-01"
+      "url": "https://github.com/plasticbugs/bbcmicro",
+      "version": "0.1.0",
+      "date_release": "2026-09-20"
     },
     "framework": {
       "target_product": "Analogue Pocket",

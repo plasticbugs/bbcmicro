@@ -87,17 +87,6 @@
                 ]
             },
             {
-                "name": "Service Switch",
-                "id": 40,
-                "type": "check",
-                "enabled": true,
-                "persist": false,
-                "address": "0xF2000000",
-                "defaultval": 0,
-                "mask": "0xFFFFFEFF",
-                "value": "0x00000100"
-            },
-            {
                 "name": "Bring-up: panel",
                 "id": 90,
                 "type": "check",
@@ -131,26 +120,347 @@
                 "mask": "0xFFFFFFDF"
             },
             {
-                "name": "Bring-up: SRAM late read capture",
-                "id": 93,
+                "name": "Boot disc on BREAK",
+                "id": 20,
                 "type": "check",
                 "enabled": true,
-                "persist": false,
+                "persist": true,
                 "address": "0xF2000000",
                 "defaultval": 0,
-                "value": "0x00000080",
-                "mask": "0xFFFFFF7F"
+                "value": "0x00010000",
+                "mask": "0xFFFEFFFF"
             },
             {
-                "name": "Bring-up: SRAM stretched writes",
-                "id": 94,
-                "type": "check",
+                "name": "D-pad keys",
+                "id": 24,
+                "type": "list",
                 "enabled": true,
-                "persist": false,
+                "persist": true,
                 "address": "0xF2000000",
                 "defaultval": 0,
-                "value": "0x00008000",
-                "mask": "0xFFFF7FFF"
+                "mask": "0xF0FFFFFF",
+                "options": [
+                    {
+                        "name": "Cursor keys",
+                        "value": "0x00000000"
+                    },
+                    {
+                        "name": ": / Z X",
+                        "value": "0x01000000"
+                    },
+                    {
+                        "name": "A Z , .",
+                        "value": "0x02000000"
+                    },
+                    {
+                        "name": "W A S D",
+                        "value": "0x03000000"
+                    }
+                ]
+            },
+            {
+                "name": "A button key",
+                "id": 28,
+                "type": "list",
+                "enabled": true,
+                "persist": true,
+                "address": "0xF2000000",
+                "defaultval": 0,
+                "mask": "0x0FFFFFFF",
+                "options": [
+                    {
+                        "name": "SPACE",
+                        "value": "0x00000000"
+                    },
+                    {
+                        "name": "RETURN",
+                        "value": "0x10000000"
+                    },
+                    {
+                        "name": "SHIFT",
+                        "value": "0x20000000"
+                    },
+                    {
+                        "name": "CTRL",
+                        "value": "0x30000000"
+                    },
+                    {
+                        "name": "ESCAPE",
+                        "value": "0x40000000"
+                    },
+                    {
+                        "name": "DELETE",
+                        "value": "0x50000000"
+                    },
+                    {
+                        "name": "COPY",
+                        "value": "0x60000000"
+                    },
+                    {
+                        "name": "A",
+                        "value": "0x70000000"
+                    },
+                    {
+                        "name": "S",
+                        "value": "0x80000000"
+                    },
+                    {
+                        "name": "Z",
+                        "value": "0x90000000"
+                    },
+                    {
+                        "name": "X",
+                        "value": "0xA0000000"
+                    },
+                    {
+                        "name": "C",
+                        "value": "0xB0000000"
+                    },
+                    {
+                        "name": ": *",
+                        "value": "0xC0000000"
+                    },
+                    {
+                        "name": "/ ?",
+                        "value": "0xD0000000"
+                    },
+                    {
+                        "name": "f0",
+                        "value": "0xE0000000"
+                    },
+                    {
+                        "name": "1",
+                        "value": "0xF0000000"
+                    }
+                ]
+            },
+            {
+                "name": "B button key",
+                "id": 8,
+                "type": "list",
+                "enabled": true,
+                "persist": true,
+                "address": "0xF2000000",
+                "defaultval": 256,
+                "mask": "0xFFFFF0FF",
+                "options": [
+                    {
+                        "name": "SPACE",
+                        "value": "0x00000000"
+                    },
+                    {
+                        "name": "RETURN",
+                        "value": "0x00000100"
+                    },
+                    {
+                        "name": "SHIFT",
+                        "value": "0x00000200"
+                    },
+                    {
+                        "name": "CTRL",
+                        "value": "0x00000300"
+                    },
+                    {
+                        "name": "ESCAPE",
+                        "value": "0x00000400"
+                    },
+                    {
+                        "name": "DELETE",
+                        "value": "0x00000500"
+                    },
+                    {
+                        "name": "COPY",
+                        "value": "0x00000600"
+                    },
+                    {
+                        "name": "A",
+                        "value": "0x00000700"
+                    },
+                    {
+                        "name": "S",
+                        "value": "0x00000800"
+                    },
+                    {
+                        "name": "Z",
+                        "value": "0x00000900"
+                    },
+                    {
+                        "name": "X",
+                        "value": "0x00000A00"
+                    },
+                    {
+                        "name": "C",
+                        "value": "0x00000B00"
+                    },
+                    {
+                        "name": ": *",
+                        "value": "0x00000C00"
+                    },
+                    {
+                        "name": "/ ?",
+                        "value": "0x00000D00"
+                    },
+                    {
+                        "name": "f0",
+                        "value": "0x00000E00"
+                    },
+                    {
+                        "name": "1",
+                        "value": "0x00000F00"
+                    }
+                ]
+            },
+            {
+                "name": "X button key",
+                "id": 12,
+                "type": "list",
+                "enabled": true,
+                "persist": true,
+                "address": "0xF2000000",
+                "defaultval": 16384,
+                "mask": "0xFFFF0FFF",
+                "options": [
+                    {
+                        "name": "SPACE",
+                        "value": "0x00000000"
+                    },
+                    {
+                        "name": "RETURN",
+                        "value": "0x00001000"
+                    },
+                    {
+                        "name": "SHIFT",
+                        "value": "0x00002000"
+                    },
+                    {
+                        "name": "CTRL",
+                        "value": "0x00003000"
+                    },
+                    {
+                        "name": "ESCAPE",
+                        "value": "0x00004000"
+                    },
+                    {
+                        "name": "DELETE",
+                        "value": "0x00005000"
+                    },
+                    {
+                        "name": "COPY",
+                        "value": "0x00006000"
+                    },
+                    {
+                        "name": "A",
+                        "value": "0x00007000"
+                    },
+                    {
+                        "name": "S",
+                        "value": "0x00008000"
+                    },
+                    {
+                        "name": "Z",
+                        "value": "0x00009000"
+                    },
+                    {
+                        "name": "X",
+                        "value": "0x0000A000"
+                    },
+                    {
+                        "name": "C",
+                        "value": "0x0000B000"
+                    },
+                    {
+                        "name": ": *",
+                        "value": "0x0000C000"
+                    },
+                    {
+                        "name": "/ ?",
+                        "value": "0x0000D000"
+                    },
+                    {
+                        "name": "f0",
+                        "value": "0x0000E000"
+                    },
+                    {
+                        "name": "1",
+                        "value": "0x0000F000"
+                    }
+                ]
+            },
+            {
+                "name": "Y button key",
+                "id": 20,
+                "type": "list",
+                "enabled": true,
+                "persist": true,
+                "address": "0xF2000000",
+                "defaultval": 2097152,
+                "mask": "0xFF0FFFFF",
+                "options": [
+                    {
+                        "name": "SPACE",
+                        "value": "0x00000000"
+                    },
+                    {
+                        "name": "RETURN",
+                        "value": "0x00100000"
+                    },
+                    {
+                        "name": "SHIFT",
+                        "value": "0x00200000"
+                    },
+                    {
+                        "name": "CTRL",
+                        "value": "0x00300000"
+                    },
+                    {
+                        "name": "ESCAPE",
+                        "value": "0x00400000"
+                    },
+                    {
+                        "name": "DELETE",
+                        "value": "0x00500000"
+                    },
+                    {
+                        "name": "COPY",
+                        "value": "0x00600000"
+                    },
+                    {
+                        "name": "A",
+                        "value": "0x00700000"
+                    },
+                    {
+                        "name": "S",
+                        "value": "0x00800000"
+                    },
+                    {
+                        "name": "Z",
+                        "value": "0x00900000"
+                    },
+                    {
+                        "name": "X",
+                        "value": "0x00A00000"
+                    },
+                    {
+                        "name": "C",
+                        "value": "0x00B00000"
+                    },
+                    {
+                        "name": ": *",
+                        "value": "0x00C00000"
+                    },
+                    {
+                        "name": "/ ?",
+                        "value": "0x00D00000"
+                    },
+                    {
+                        "name": "f0",
+                        "value": "0x00E00000"
+                    },
+                    {
+                        "name": "1",
+                        "value": "0x00F00000"
+                    }
+                ]
             }
         ]
     }

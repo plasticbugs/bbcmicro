@@ -62,6 +62,9 @@ module i8271 (
     localparam int BYTE_US = 32;        // 250 kbit/s FM
     localparam int STEP_US = 2000;      // per track, while seeking
     localparam int SETTLE_US = 8000;    // head settling after a seek
+    localparam int END_US = 8;          // between the last byte and the
+                                        // completion interrupt, so the CPU
+                                        // sees NMI go low between them
 
     // ------------------------------------------------------------- results
     localparam logic [7:0] ERR_NONE = 8'h00;
@@ -90,7 +93,7 @@ module i8271 (
     // ----------------------------------------------------------- execution
     typedef enum logic [3:0] {
         X_NONE, X_SEEK, X_RD_FETCH, X_RD_WAIT, X_RD_OFFER, X_RD_NEXT,
-        X_WR_ASK, X_WR_WAIT, X_WR_STORE, X_WR_NEXT, X_DONE
+        X_WR_ASK, X_WR_WAIT, X_WR_STORE, X_WR_NEXT, X_END, X_DONE
     } exec_t;
     exec_t xs;
 
@@ -398,7 +401,20 @@ module i8271 (
                         xs        <= X_RD_WAIT;
                     end
                 end
-                X_RD_OFFER: if (!drq) begin            // the CPU has it
+                // The last byte has been taken.  Both the data request and
+                // the completion interrupt are wired to the CPU's NMI, and a
+                // 6502 takes an NMI on an EDGE -- so the line has to be seen
+                // low between the two.  Asserted a clock after the request
+                // cleared, the low lasts 10 ns and the CPU, which samples NMI
+                // once per cycle, never sees it: DFS read the catalogue, got
+                // no completion interrupt, and the boot stopped there with
+                // the controller still holding its result.  The real chip
+                // takes microseconds to finish a sector; so does this.
+                X_RD_OFFER: if (!drq) begin
+                    us_left <= 16'(END_US);
+                    xs      <= X_END;
+                end
+                X_END: if (us_left == 16'd0) begin
                     result <= ERR_NONE;
                     phase  <= P_RESULT;
                     irq    <= 1'b1;
@@ -424,10 +440,8 @@ module i8271 (
                     cur_addr <= cur_addr + 20'd1;
                     if (byte_left == 9'd1) begin
                         if (sec_left == 8'd1) begin
-                            result <= ERR_NONE;
-                            phase  <= P_RESULT;
-                            irq    <= 1'b1;
-                            xs     <= X_DONE;
+                            us_left <= 16'(END_US);   // the same gap, and why
+                            xs      <= X_END;
                         end else begin
                             sec_left  <= sec_left - 8'd1;
                             sec       <= sec + 8'd1;

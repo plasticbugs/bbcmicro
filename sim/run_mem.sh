@@ -1,11 +1,15 @@
 #!/bin/sh
-# Pocket memory gate: target/pocket/bbcmicro_mem.sv, the real SDRAM controller and
-# the real SRAM port against behavioural chips.  An image goes in through the
-# download port the way the Pocket sends it and every region is read back
-# through the core's ports.  Run it whenever the memory module changes, and
-# before the first flash.
+# Pocket memory gate: target/pocket/bbcmicro_mem.sv and the real SDRAM
+# controller against a behavioural chip.  A disc image goes in through the
+# download port the way the Pocket sends it, and every byte is read back
+# through the disc controller's port.  Run it whenever the memory module
+# changes, and before the first flash.
 #
-#   sim/run_mem.sh [rom] [-gap N] [-hold N] [-quick]
+# The SRAM is not part of this core (docs/core-design.md section 2), and the
+# ROMs and RAM are block RAM inside the machine, so the disc is all there is
+# out here -- and it is the only thing a corrupted download could break.
+#
+#   sim/run_mem.sh [-gap N] [-hold N] [-quick] [-size N]
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here"
@@ -15,7 +19,7 @@ verilator --cc --exe --build -j "${JOBS:-8}" -O2 \
     -Wno-PINCONNECTEMPTY -Wno-TIMESCALEMOD \
     -Wno-BLKSEQ -Wno-MULTIDRIVEN -Wno-WIDTHTRUNC -Wno-WIDTHEXPAND -Wno-SYNCASYNCNET \
     --top-module tb_mem_top -Mdir obj_mem \
-    ../target/pocket/bbcmicro_mem.sv ../target/pocket/sdram_ctrl.sv ../target/pocket/sram_port.sv \
-    sdram_model.sv sram_model.sv tb_mem_top.sv tb_mem.cpp > obj_mem.log 2>&1 \
+    ../target/pocket/bbcmicro_mem.sv ../target/pocket/sdram_ctrl.sv \
+    sdram_model.sv tb_mem_top.sv tb_mem.cpp > obj_mem.log 2>&1 \
     || { tail -40 obj_mem.log; exit 1; }
 exec ./obj_mem/Vtb_mem_top "$@"
