@@ -26,8 +26,10 @@ for w in UNUSEDPARAM PINCONNECTEMPTY; do
         && OPTS="$OPTS -Wno-$w"
 done
 
-# vendored modules, if there are any yet
-MODS=$(ls "$root"/modules/*/*.v "$root"/modules/*/*.sv 2>/dev/null || true)
+# Vendored modules.  The VHDL ones are built from the Verilog tools/vhdl2v.sh
+# generates in modules/<name>/gen/, which is what Quartus builds too
+# (modules/VENDOR.md), so that is what gets linted with the core.
+MODS=$(ls "$root"/modules/*/*.v "$root"/modules/*/*.sv "$root"/modules/*/gen/*.v 2>/dev/null || true)
 
 fail=0
 for f in "$root"/rtl/*.sv; do
