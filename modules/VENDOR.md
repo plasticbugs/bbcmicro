@@ -27,8 +27,7 @@ tools/vhdl2v.sh modules/cpu-t65 T65        # and so on, per the table
 
 ## Modifications
 
-Only one vendored file is changed, and the change is marked `MODIFIED` in
-place:
+Two vendored files are changed, and each change is marked `MODIFIED` in place:
 
 - **`video-saa5050/saa5050.vhd`** — upstream instantiates
   `saa5050_rom_dual_port`, which carries the teletext font as a literal table
@@ -64,3 +63,12 @@ place:
 
 Re-copy from upstream at the new commit, re-run `tools/vhdl2v.sh`, and record
 the new commit here. Then run every bench: the generated Verilog is the build.
+
+- **`sound-sn76489/sn76489.vhd`** — the tone generator counted 0 to FREQ
+  inclusive, a half-period of FREQ+1, which the comment above it in the file
+  already warns is wrong. Every note came out one divider step flat.
+  Measured against MAME on `SOUND 1,-15,100,50` typed into BASIC: MAME's tone
+  was 527.426 Hz, which is 4 MHz / 32 / 237 for the divider the OS wrote, and
+  this chip's was 525.211 Hz, which is 4 MHz / 32 / 238 exactly. Counting 1 to
+  FREQ gives the datasheet's f = clock / (32 x N) and leaves N = 0 behaving as
+  N = 1; after it, 527.423 Hz.

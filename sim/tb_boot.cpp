@@ -47,7 +47,8 @@ int main(int argc, char **argv) {
     bool quiet = false;
     double break_ms = -1;
     long trace_n = 0;
-    std::string dumpram, disc, bustrace;
+    std::string dumpram, disc, bustrace, wav;
+    double wav_from = 0;
     long bus_n = 400000;
     bool raw = false;
     double trace_from = 0;
@@ -77,6 +78,8 @@ int main(int argc, char **argv) {
         else if (a == "-io") io_only = true;   // trace only FRED, JIM and SHEILA
         else if (a == "-wonly") wonly = true;
         else if (a == "-predelay" && i + 1 < argc) predelay = atoi(argv[++i]);
+        else if (a == "-wav" && i + 1 < argc) wav = argv[++i];
+        else if (a == "-wav_from" && i + 1 < argc) wav_from = atof(argv[++i]);
         else if (a == "-pc" && i + 1 < argc) {
             sscanf(argv[++i], "%lx,%lx", &pc_lo, &pc_hi);
         }
@@ -156,6 +159,12 @@ int main(int argc, char **argv) {
     FILE *bus = bustrace.empty() ? nullptr : fopen(bustrace.c_str(), "w");
     long bus_count = 0;
 
+    // The sound, at the rate the Pocket takes it: 96 MHz / 2000 is exactly
+    // 48 kHz, the same rate MAME writes, so tools/compare_audio.py can put
+    // the two side by side without resampling either.
+    std::vector<int16_t> pcm;
+    long wav_div = 0;
+
     std::vector<uint8_t> fb(W * H * 3, 0);
     long frame = 0, x = 0, y = -1, active = 0, active_prev = 0;
     int prev_vs = 0, prev_de = 0, prev_hs = 0;
@@ -196,6 +205,10 @@ int main(int argc, char **argv) {
         }
         if (dut->trc_cen && !dut->trc_rnw && dut->trc_addr < 0x8000)
             shadow[dut->trc_addr] = dut->trc_data;
+        if (!wav.empty() && ++wav_div == 2000) {
+            wav_div = 0;
+            if (ms_now() >= wav_from) pcm.push_back(dut->snd);
+        }
         if (dut->dbg_bus) fetches++;
         if (dut->dbg_wait) stretched++;
 
@@ -256,6 +269,23 @@ int main(int argc, char **argv) {
     if (bus) {
         fclose(bus);
         printf("bus trace: %ld transactions -> %s\n", bus_count, bustrace.c_str());
+    }
+    if (!wav.empty()) {
+        FILE *o = fopen(wav.c_str(), "wb");
+        if (!o) fprintf(stderr, "cannot write %s\n", wav.c_str());
+        else {
+            uint32_t n = (uint32_t)pcm.size() * 2, rate = 48000;
+            auto w32 = [&](uint32_t v) { fwrite(&v, 4, 1, o); };
+            auto w16 = [&](uint16_t v) { fwrite(&v, 2, 1, o); };
+            fwrite("RIFF", 1, 4, o); w32(36 + n); fwrite("WAVE", 1, 4, o);
+            fwrite("fmt ", 1, 4, o); w32(16); w16(1); w16(1);
+            w32(rate); w32(rate * 2); w16(2); w16(16);
+            fwrite("data", 1, 4, o); w32(n);
+            fwrite(pcm.data(), 1, n, o);
+            fclose(o);
+            printf("wrote %s (%zu samples, %.3f s at 48 kHz)\n",
+                   wav.c_str(), pcm.size(), pcm.size() / 48000.0);
+        }
     }
     if (!dumpram.empty()) {
         FILE *o = fopen(dumpram.c_str(), "wb");

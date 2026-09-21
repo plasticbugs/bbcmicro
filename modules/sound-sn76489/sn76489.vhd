@@ -24,19 +24,27 @@ begin
   -- the datasheet suggests that the frequency register is loaded
   -- into a 10-bit counter and decremented until it hits 0
   -- however, this results in a half-period of FREQ+1!
-
+  --
+  -- MODIFIED (see modules/VENDOR.md): the code below counted 0 to FREQ
+  -- inclusive, which is the FREQ+1 half-period the comment above warns
+  -- about, so every note came out flat by one divider step.  Measured
+  -- against MAME on a BBC BASIC SOUND 1,-15,100,50: MAME's tone was
+  -- 527.426 Hz (4 MHz / 32 / 237, the divider the OS wrote) and this
+  -- chip's was 525.211 Hz, which is 4 MHz / 32 / 238 exactly.  Counting
+  -- 1 to FREQ makes the half-period FREQ, which is what the datasheet's
+  -- f = clock / (32 x N) means, and it keeps N = 0 behaving as N = 1.
   process (clk, reset)
     variable count  : std_logic_vector(9 downto 0);
     variable tone   : std_logic;
   begin
     if reset = '1' then
-      count := (others => '0');
+      count := (0 => '1', others => '0');
       tone := '0';
     elsif rising_edge(clk) then
       if clk_div16_en = '1' then
-        if count = freq then
+        if count >= freq then
           tone := not tone;
-          count := (others => '0');
+          count := (0 => '1', others => '0');
         else
           count := count + 1;
         end if;

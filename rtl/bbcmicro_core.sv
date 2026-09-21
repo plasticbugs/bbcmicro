@@ -508,9 +508,53 @@ module bbcmicro_core (
         .d(sysvia_pa_out), .we_n(sound_we_n), .ce_n(1'b0),
         .audio_out(sn_out)
     );
-    // The chip's output is unsigned around mid-scale; the Pocket's mixer wants
-    // signed, and nothing else is mixed with it.
-    assign snd = $signed({1'b0, sn_out[15:1]}) - 16'sd16384;
+    // The chip's output is unsigned and silent at zero -- all four channels
+    // attenuated is 0, not mid-scale -- and the board couples it to the
+    // amplifier through a capacitor.  Subtracting mid-scale instead put
+    // silence at -16384, half of full scale of DC, and started every sound
+    // with a step that size: measured, a SOUND 1,-15,100,50 typed into BASIC
+    // came out switching between -16384 and -8193 where MAME's swung about
+    // its own zero.  A one-pole DC blocker does what the capacitor does:
+    //
+    //     y[n] = x[n] - x[n-1] + (1 - 2^-13) * y[n-1]
+    //
+    // run on the 1 MHz enable, which puts the corner at 1e6/(2*pi*8192) =
+    // 19 Hz -- below the lowest note the SN76489 can make at this clock
+    // (4 MHz / 32 / 1023 = 122 Hz) and far below anything a game plays.
+    // The accumulator carries 8 fractional bits.  Without them `y >>> 13` is
+    // zero for every |y| below 8192 -- larger than this signal ever gets --
+    // so the leak never fires, the filter degenerates into an integrator of
+    // the input's differences, and it passes the DC through untouched.  That
+    // is what the first version measured: silence at 0, but the beep still
+    // sitting entirely above it at 0..8191.
+    // The sample is registered before the filter sees it.  Without that the
+    // path ran from inside the SN76489's own output logic through the
+    // filter's adders in one clock and was the longest in the design
+    // (-0.637 ns at 96 MHz, sn76489|n206[20] -> dcb_y[22]).  26 bits is
+    // enough for the widest excursion: 15 bits of sample, 8 of fraction and
+    // two of headroom.
+    localparam int DCB_SHIFT = 13;
+    localparam int DCB_FRAC  = 8;
+    wire signed [15:0] sn_sample = $signed({1'b0, sn_out[15:1]});
+    logic signed [15:0] sn_reg, dcb_x_d;
+    logic signed [25:0] dcb_y;
+    wire  signed [25:0] dcb_out = dcb_y >>> DCB_FRAC;
+    always_ff @(posedge clk) begin
+        if (!hard_reset_n) begin
+            sn_reg  <= 16'sd0;
+            dcb_x_d <= 16'sd0;
+            dcb_y   <= 26'sd0;
+        end else if (cen_1m) begin
+            sn_reg  <= sn_sample;
+            dcb_x_d <= sn_reg;
+            dcb_y   <= dcb_y - (dcb_y >>> DCB_SHIFT)
+                       + ((26'(sn_reg) - 26'(dcb_x_d)) <<< DCB_FRAC);
+        end
+    end
+    // the blocker's output cannot exceed the input's range, but it is clamped
+    // rather than wrapped: a wrap would be an audible crack, a clamp is not
+    assign snd = (dcb_out >  26'sd32767) ?  16'sd32767 :
+                 (dcb_out < -26'sd32768) ? -16'sd32768 : 16'(dcb_out);
 
     // =====================================================================
     // Analogue port
