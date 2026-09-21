@@ -408,8 +408,17 @@ module bbcmicro_core (
     // exactly on the alignment MAME's own render peaks at (lit 19..639).  The
     // extra dot on the bitmap figure is the one reported from hardware as a
     // column missing off the right.
-    localparam int PIPE_BITMAP = 9;
-    localparam int PIPE_TTXT   = 51;
+    // The bitmap delay is ONE CHARACTER of the ULA's pipeline, and a
+    // character is not always the same number of dots: the video ULA's
+    // control register bit 4 picks a 2 MHz character clock (MODE 0-3, eight
+    // dots) or 1 MHz (MODE 4-6, sixteen).  One constant served MODE 1 and
+    // left every 1 MHz game eight dots adrift -- black down the left edge and
+    // the same missing off the right, which is what hardware reported after
+    // the anchoring went in.  The ULA keeps that bit to itself, so the write
+    // is snooped here.
+    localparam int PIPE_BITMAP_2M = 9;      // 2 MHz characters: MODE 0-3
+    localparam int PIPE_BITMAP_1M = 17;     // 1 MHz characters: MODE 4-6
+    localparam int PIPE_TTXT      = 51;
     localparam int H_WIDTH = 640;
     // 32 lines after the vsync edge, which is where the CRTC starts its
     // picture in every mode this machine uses.  Read off the registers the
@@ -421,6 +430,15 @@ module bbcmicro_core (
     // simply missing.
     localparam int V_START = 32;        // lines after the vsync edge
     localparam int V_HEIGHT = 256;
+
+    // the video ULA's control register bit 4, latched exactly as the ULA
+    // itself latches it (ENABLE = vidproc_sel & write, A0 = 0, on cpu_cen)
+    logic ula_2mhz;
+    always_ff @(posedge clk) begin
+        if (!hard_reset_n) ula_2mhz <= 1'b0;
+        else if (cpu_cen && vidproc_sel && !cpu_rnw && !cpu_a[0])
+            ula_2mhz <= cpu_do[4];
+    end
 
     logic [10:0] hcnt, h_start, de_at;
     logic  [9:0] vcnt;
@@ -444,8 +462,9 @@ module bbcmicro_core (
             end
             if (vs_rise) begin
                 seen_de <= 1'b0;
-                h_start <= de_at + (ttxt_sel ? 11'(PIPE_TTXT)
-                                             : 11'(PIPE_BITMAP));
+                h_start <= de_at + (ttxt_sel  ? 11'(PIPE_TTXT)     :
+                                    ula_2mhz  ? 11'(PIPE_BITMAP_2M)
+                                              : 11'(PIPE_BITMAP_1M));
             end
 
             if (vs_rise)      vcnt <= 10'd0;

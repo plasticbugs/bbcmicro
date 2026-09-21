@@ -3,6 +3,28 @@
     "magic": "APF_VER_1",
     "variables": [
       {
+        "name": "Auto-boot disc",
+        "id": 4,
+        "type": "check",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFFFE",
+        "value": "0x00000001"
+      },
+      {
+        "name": "Joystick",
+        "id": 5,
+        "type": "check",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFFBF",
+        "value": "0x00000040"
+      },
+      {
         "name": "D-pad keys",
         "id": 10,
         "type": "list",
@@ -101,28 +123,6 @@
           { "name": ": *", "value": "0x00C00000" },
           { "name": "/ ?", "value": "0x00D00000" }
         ]
-      },
-      {
-        "name": "Joystick",
-        "id": 5,
-        "type": "check",
-        "enabled": true,
-        "persist": true,
-        "address": "0xF2000000",
-        "defaultval": 0,
-        "mask": "0xFFFFFFBF",
-        "value": "0x00000040"
-      },
-      {
-        "name": "Boot disc on BREAK",
-        "id": 4,
-        "type": "check",
-        "enabled": true,
-        "persist": true,
-        "address": "0xF2000000",
-        "defaultval": 0,
-        "mask": "0xFFFFFFFE",
-        "value": "0x00000001"
       },
       {
         "name": "Screen Shape",
