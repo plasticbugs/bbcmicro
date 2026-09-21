@@ -308,12 +308,14 @@ module i8271 (
                     6'h29: begin                                  // seek
                         trk <= par0;
                         xs  <= X_SEEK;
-                        // the head takes STEP_US a track, and none at all
-                        // when it is already there, which is what the first
-                        // seek of a boot does
-                        us_left <= 16'(STEP_US) *
-                                   {8'd0, ((par0 > cur_pcn) ? (par0 - cur_pcn)
-                                                            : (cur_pcn - par0))};
+                        // The head takes STEP_US a track, and none at all when
+                        // it is already there, which is what the first seek of
+                        // a boot does.  It is timed one track at a time, below,
+                        // the way a head actually moves: multiplying the track
+                        // distance by STEP_US in one clock was the longest
+                        // path in the whole design after the CPU's was relaxed
+                        // (-0.298 ns at 96 MHz, from pcn0/par0 to us_left).
+                        us_left <= (par0 == cur_pcn) ? 16'd0 : 16'(STEP_US);
                     end
                     6'h13, 6'h17, 6'h12, 6'h16: begin             // read data
                         if (!(sel_drive ? ready1 : ready0)) begin
@@ -366,11 +368,17 @@ module i8271 (
 
             case (xs)
                 X_SEEK: if (us_left == 16'd0) begin
-                    if (sel_drive) pcn1 <= trk; else pcn0 <= trk;
-                    result <= ERR_NONE;
-                    phase  <= P_RESULT;
-                    irq    <= 1'b1;
-                    xs     <= X_DONE;
+                    if (cur_pcn != trk) begin
+                        // one track, then wait for the next step
+                        if (sel_drive) pcn1 <= (pcn1 < trk) ? pcn1 + 8'd1 : pcn1 - 8'd1;
+                        else           pcn0 <= (pcn0 < trk) ? pcn0 + 8'd1 : pcn0 - 8'd1;
+                        us_left <= 16'(STEP_US);
+                    end else begin
+                        result <= ERR_NONE;
+                        phase  <= P_RESULT;
+                        irq    <= 1'b1;
+                        xs     <= X_DONE;
+                    end
                 end
 
                 // one byte every BYTE_US, as the disc turns

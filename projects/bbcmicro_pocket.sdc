@@ -68,21 +68,33 @@ set_false_path -to   [get_ports {cram0_* cram1_*}]
 set_false_path -from [get_ports {cram0_dq[*] cram1_dq[*] cram0_wait cram1_wait}]
 
 # ------------------------------------------------------------------------------
-# Multicycle exceptions for clock-enabled blocks go here.  None are claimed
-# yet, because the skeleton has nothing that needs one.  Before adding any,
-# read METHODOLOGY.md sections 5.11 and 5.20:
+# The 6502 steps on a clock enable, and its internal paths are the only ones
+# in this design that miss 96 MHz.  Measured, before this exception: setup
+# slack -1.577 ns on the core clock with TNS -26.314, and every one of the 40
+# violating paths was T65 -> T65 (n838 -> n822 and neighbours).  Nothing else
+# in the machine violated at all.
 #
-#   * write down why EVERYTHING the filter matches qualifies, and register
-#     every input at the edge of the relaxed region;
-#   * a register Quartus merges into a block RAM's output no longer exists by
-#     name, the filter matches nothing, and the line is ignored with a warning
-#     -- CI fails the build on that (Check every constraint was applied);
-#   * a block RAM read closes on one clock.  Leave it alone.
+# Why everything this filter matches qualifies (METHODOLOGY 5.11, 5.20):
 #
-# The shape the sibling cores use, proven on hardware, for a CPU that steps on
-# clock enables four or more system clocks apart:
+#   * T65's state is in four clocked processes and every one of them is inside
+#     `if (Enable = '1')` (modules/cpu-t65/T65.vhd, lines 353, 440, 532, 672).
+#     Enable is cpu_cen, one system clock in 48 at 2 MHz and one in 96 while a
+#     1 MHz cycle is stretched, so a value launched by one enable is not
+#     sampled until the next -- 48 clocks later, not 4.
+#   * The fifth clocked process, at line 322, is the two-flop reset
+#     synchroniser (Res_n_d, Res_n_i) and is NOT gated by Enable.  It is two
+#     flops in series with no logic between them, so it cannot fail at any
+#     multicycle; its output is an asynchronous reset, whose release the CPU
+#     then sits behind for 256 more cpu_cen ticks (rtl/bbcmicro_core.sv's
+#     rst_cnt), which is at least 12,288 system clocks.
+#   * Only T65 -> T65 is relaxed.  Everything crossing the boundary -- DI,
+#     IRQ_n, NMI_n, Rdy in; A, DO, R_W_n, Sync out -- keeps the full
+#     single-cycle check, so the registers at the edge of the relaxed region
+#     are checked as they stand.
 #
-#   set M68K [get_keepers {*|fx68k:*|*}]
-#   set_multicycle_path -setup 4 -from $M68K -to $M68K
-#   set_multicycle_path -hold  3 -from $M68K -to $M68K
-# ------------------------------------------------------------------------------
+# If this line ever matches nothing, CI fails the build on it ("Check every
+# constraint was applied"), which is the point: a 6502 that quietly stopped
+# being relaxed would be a 96 MHz path again.
+set T65 [get_keepers {*|T65:*|*}]
+set_multicycle_path -setup 4 -from $T65 -to $T65
+set_multicycle_path -hold  3 -from $T65 -to $T65
