@@ -78,16 +78,16 @@ if find "$OUT" -name '*.rom' | grep -q .; then
 fi
 
 VER=$(python3 -c "import json;print(json.load(open('pkg/pocket/Cores/plasticbugs.bbcmicro/core.json'))['core']['metadata']['version'])")
-ZIP="$PWD/mcr68-pocket-sdcard.zip"
+ZIP="$PWD/bbcmicro-pocket-sdcard.zip"
 rm -f "$ZIP"
 (cd "$OUT" && zip -qr "$ZIP" .)
 echo "package $VER, zip $(wc -c < "$ZIP") bytes"
 for c in $CORES; do
-    echo "  $c  md5 $(md5 -q "$OUT/Cores/$c/bitstream.rbf_r")"
+    echo "  $c  md5 $(python3 -c "import hashlib,sys;print(hashlib.md5(open(sys.argv[1],'rb').read()).hexdigest())" "$OUT/Cores/$c/bitstream.rbf_r")"
 done
 
 gh release create "$TAG" \
-    --title "MCR-68000 for Analogue Pocket $TAG" \
+    --title "BBC Micro for Analogue Pocket $TAG" \
     --notes-file docs/release-notes.md \
     "$ZIP"
 rm -f "$ZIP"
