@@ -37,12 +37,14 @@ import sys
 #     variables      up to 14      option values   up to 0x00C00000
 #     bytes          up to 7,597   options a list  up to 16
 #     longest name   26            defaultval      0..3
+#     options in the whole file    up to 52
 #
 # The 23 characters an earlier version of this file called a limit was a
 # guess, and wrong: OpenJazz ships a 26-character name and loads.
 NAME_MAX = 26
 OPTS_MAX = 16
 SIZE_MAX = 7600
+TOTAL_OPTS_MAX = 52    # atarisy2's, the most of any core that loads here
 
 MAGIC = {
     'core.json': 'APF_VER_1', 'data.json': 'APF_VER_1',
@@ -86,6 +88,21 @@ def main(argv):
 
         if base == 'interact.json':
             v = d['interact'].get('variables', [])
+            total = sum(len(x.get('options', [])) for x in v)
+            if total > TOTAL_OPTS_MAX:
+                fault(path, f'{total} options in the whole file, more than the '
+                            f'{TOTAL_OPTS_MAX} of any core that loads here')
+            for x in v:
+                for val in ([o.get('value') for o in x.get('options', [])]
+                            + [x.get('value')]):
+                    try:
+                        n = int(str(val), 16)
+                    except (TypeError, ValueError):
+                        continue
+                    if n & 0x80000000:
+                        fault(path, f'{x.get("name")!r} has the value {val}, '
+                                    f'with bit 31 set; no core that loads here '
+                                    f'has one above 0x00C00000')
             seen = {}
             for x in v:
                 i, name = x.get('id'), x.get('name', '')

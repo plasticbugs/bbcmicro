@@ -905,7 +905,7 @@ module core_top
     //! column 6 at DA03-DA1D and DFS's service call 3 handler acts on it.
     //! The screen-mode links stay open, which is what makes a bare machine
     //! start in MODE 7.
-    wire [7:0] g_links = {3'b000, mod_sw2[0], 4'b0000};   // column 6 = Boot
+    wire [7:0] g_links = {3'b000, mod_sw0[0], 4'b0000};   // column 6 = Boot
 
     wire        pad_stb, pad_press;
     wire  [3:0] pad_col;
@@ -938,9 +938,23 @@ module core_top
         .active(osk_active), .pix(osk_pix)
     );
 
-    //! Which key each control presses.  mod_sw3 and mod_sw2's upper nibble
-    //! carry the choices; the lists are in rtl/bbc_input.sv and must stay in
-    //! step with interact.json.
+    //! Which key each control presses.  All five choices live in the
+    //! modifier word (0xF2000000): B at bits 8-11, X at 12-15, A at 16-19,
+    //! Y at 20-23, the d-pad at 24-27.  The lists are in rtl/bbc_input.sv
+    //! and must stay in step with interact.json.
+    //!
+    //! A was at bits 28-31, which made interact.json ask the Pocket to store
+    //! an option value of 0xF0000000.  Nothing among the seventeen cores on
+    //! the author's own Pocket uses an option value with the top bit set --
+    //! the largest is 0x00C00000 -- and the Pocket refused this core's
+    //! interact.json three times.  Moving A into the nibble at 16-19, and
+    //! "Boot disc on BREAK" out of bit 16 down to bit 0, puts every option
+    //! value under 0x04000000 with nothing in bit 31.
+    //!
+    //! The DIP word (0xF1000000) would have been the roomier home, and is
+    //! unused by this machine, but a write to it restarts the core
+    //! (platform/pocket/interface/interact.sv) -- remapping a button must
+    //! not reset the machine you are typing into.
     bbc_input u_input (
         .clk(clk_sys), .rst(g_reset),
         .up(p1_up), .down(p1_down), .left(p1_left), .right(p1_right),
@@ -948,7 +962,7 @@ module core_top
         .b_l(p1_btn_l1), .b_r(p1_btn_r1),
         .b_select(p1_select), .b_start(p1_start),
         .map_dpad(mod_sw3[3:0]),
-        .map_a(mod_sw3[7:4]), .map_b(mod_sw1[3:0]),
+        .map_a(mod_sw2[3:0]), .map_b(mod_sw1[3:0]),
         .map_x(mod_sw1[7:4]), .map_y(mod_sw2[7:4]),
         .map_select(4'd4), .map_start(4'd1),
         .inhibit(osk_visible),

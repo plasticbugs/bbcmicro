@@ -69,11 +69,18 @@ What that survey has already settled, against seventeen cores:
 | | accepted | note |
 |---|---|---|
 | `defaultval` on a list | 0–3 | an **index into the options**, not the value to write |
-| variables | up to 14 | |
-| file size | up to 7,597 bytes | |
-| longest name | 26 characters | |
-| options in a list | 16 | |
-| largest option value | 0x00C00000 | masks routinely exceed 0x80000000, so the parser is unsigned |
+| variables | up to 14 | the documented cap is 16 |
+| options in a list | 16 | the documented cap is 16, and OpenJazz ships 16 |
+| **options in the whole file** | **up to 52** | this core had 78 and was refused |
+| **largest option value** | **0x00C00000** | this core had 0xF0000000 and was refused; nothing that loads sets bit 31 |
+| file size | up to 7,597 bytes | not minified — poleposition is 348 lines |
+| longest name | 26 characters | the documented cap is 23; 26 loads anyway |
+| top-level `messages` | present in 13 of 17 | not in the spec, and harmless |
+| `value_off` on a check | absent in all 17 | not required |
+
+Where a field lives in the modifier word decides what option values
+interact.json has to carry, so the bit layout is a JSON constraint as much as
+an RTL one: a nibble at bits 28-31 asks the Pocket to store 0xF0000000.
 
 `tools/check_json.py` enforces those before packaging.
 

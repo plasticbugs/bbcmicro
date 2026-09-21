@@ -64,8 +64,8 @@
         "persist": true,
         "address": "0xF2000000",
         "defaultval": 0,
-        "mask": "0xFFFEFFFF",
-        "value": "0x00010000"
+        "mask": "0xFFFFFFFE",
+        "value": "0x00000001"
       },
       {
         "name": "D-pad keys",
@@ -91,24 +91,17 @@
         "persist": true,
         "address": "0xF2000000",
         "defaultval": 0,
-        "mask": "0x0FFFFFFF",
+        "mask": "0xFFF0FFFF",
         "options": [
           { "name": "SPACE", "value": "0x00000000" },
-          { "name": "RETURN", "value": "0x10000000" },
-          { "name": "SHIFT", "value": "0x20000000" },
-          { "name": "CTRL", "value": "0x30000000" },
-          { "name": "ESCAPE", "value": "0x40000000" },
-          { "name": "DELETE", "value": "0x50000000" },
-          { "name": "COPY", "value": "0x60000000" },
-          { "name": "A", "value": "0x70000000" },
-          { "name": "S", "value": "0x80000000" },
-          { "name": "Z", "value": "0x90000000" },
-          { "name": "X", "value": "0xA0000000" },
-          { "name": "C", "value": "0xB0000000" },
-          { "name": ": *", "value": "0xC0000000" },
-          { "name": "/ ?", "value": "0xD0000000" },
-          { "name": "f0", "value": "0xE0000000" },
-          { "name": "1", "value": "0xF0000000" }
+          { "name": "RETURN", "value": "0x00010000" },
+          { "name": "SHIFT", "value": "0x00020000" },
+          { "name": "CTRL", "value": "0x00030000" },
+          { "name": "ESCAPE", "value": "0x00040000" },
+          { "name": "Z", "value": "0x00090000" },
+          { "name": "X", "value": "0x000A0000" },
+          { "name": ": *", "value": "0x000C0000" },
+          { "name": "/ ?", "value": "0x000D0000" }
         ]
       },
       {
@@ -126,17 +119,10 @@
           { "name": "SHIFT", "value": "0x00000200" },
           { "name": "CTRL", "value": "0x00000300" },
           { "name": "ESCAPE", "value": "0x00000400" },
-          { "name": "DELETE", "value": "0x00000500" },
-          { "name": "COPY", "value": "0x00000600" },
-          { "name": "A", "value": "0x00000700" },
-          { "name": "S", "value": "0x00000800" },
           { "name": "Z", "value": "0x00000900" },
           { "name": "X", "value": "0x00000A00" },
-          { "name": "C", "value": "0x00000B00" },
           { "name": ": *", "value": "0x00000C00" },
-          { "name": "/ ?", "value": "0x00000D00" },
-          { "name": "f0", "value": "0x00000E00" },
-          { "name": "1", "value": "0x00000F00" }
+          { "name": "/ ?", "value": "0x00000D00" }
         ]
       },
       {
@@ -154,17 +140,10 @@
           { "name": "SHIFT", "value": "0x00002000" },
           { "name": "CTRL", "value": "0x00003000" },
           { "name": "ESCAPE", "value": "0x00004000" },
-          { "name": "DELETE", "value": "0x00005000" },
-          { "name": "COPY", "value": "0x00006000" },
-          { "name": "A", "value": "0x00007000" },
-          { "name": "S", "value": "0x00008000" },
           { "name": "Z", "value": "0x00009000" },
           { "name": "X", "value": "0x0000A000" },
-          { "name": "C", "value": "0x0000B000" },
           { "name": ": *", "value": "0x0000C000" },
-          { "name": "/ ?", "value": "0x0000D000" },
-          { "name": "f0", "value": "0x0000E000" },
-          { "name": "1", "value": "0x0000F000" }
+          { "name": "/ ?", "value": "0x0000D000" }
         ]
       },
       {
@@ -182,17 +161,10 @@
           { "name": "SHIFT", "value": "0x00200000" },
           { "name": "CTRL", "value": "0x00300000" },
           { "name": "ESCAPE", "value": "0x00400000" },
-          { "name": "DELETE", "value": "0x00500000" },
-          { "name": "COPY", "value": "0x00600000" },
-          { "name": "A", "value": "0x00700000" },
-          { "name": "S", "value": "0x00800000" },
           { "name": "Z", "value": "0x00900000" },
           { "name": "X", "value": "0x00A00000" },
-          { "name": "C", "value": "0x00B00000" },
           { "name": ": *", "value": "0x00C00000" },
-          { "name": "/ ?", "value": "0x00D00000" },
-          { "name": "f0", "value": "0x00E00000" },
-          { "name": "1", "value": "0x00F00000" }
+          { "name": "/ ?", "value": "0x00D00000" }
         ]
       },
       {
