@@ -139,6 +139,32 @@ where the window starts, and that is forced (below).
   line. The teletext path's four characters of delay are three more than the
   bitmap path's and one more than the hardware's; the window hides that, and
   it has not been chased down.
+- **Where the window sits is measured, not counted.** It latches the dot at
+  which the CRTC's display enable rises, once a frame, and adds what this
+  core's own pipeline costs after it: one character of the video ULA, which is
+  9 dots with a 2 MHz character clock (MODE 0-3) and 17 with 1 MHz (MODE 4-6,
+  from the ULA control register's bit 4, snooped in `bbcmicro_core.sv`), and
+  51 for the teletext path. Anchoring on DE rather than on the hsync edge is
+  what makes a game that reprograms the CRTC keep its picture inside the
+  window.
+
+  Checked with a single line drawn the full width of the screen —
+  `MODE0:DRAW1279,0` — which is 640 dots with no rounding to misread:
+
+  | mode | dots a pixel | gap at the left | right edge |
+  |---|---|---|---|
+  | MODE 0 | 1 | 0 | 639 |
+  | MODE 1 | 2 | 1 | 639 |
+  | MODE 2 | 4 | 3 | 639 |
+  | MODE 5 | 4 | 3 | 639 |
+
+  Every mode ends on the window's last dot; the gap at the left is
+  (dots a pixel − 1), which is where `MOVE 0,0` lands inside pixel 0 and not
+  a misplaced window. **Confirmed on hardware**: the MODE 0 line reaches both
+  edges with nothing missing. A game that looks shifted after this is showing
+  its own margins — a CRT's overscan hid them, a panel showing exactly the
+  machine's 640 dots does not.
+
 - **Phase.** The clock enables are gated by reset. Without that they fire on
   every 96 MHz clock while reset is held (the dividers sit at zero and the
   enable is `d == 0`), and the video ULA's `CLKEN_COUNT` — which its `nRESET`
