@@ -276,7 +276,7 @@ module bbcmicro_core (
         .ENABLE(crtc_sel), .R_nW(cpu_rnw), .RS(cpu_a[0]),
         .DI(cpu_do), .DO(crtc_do),
         .VSYNC(crtc_vs), .HSYNC(crtc_hs), .DE(crtc_de), .CURSOR(crtc_cursor),
-        .LPSTB(1'b0), .VGA(1'b0),
+        .LPSTB(1'b0), .VGA(1'b0), .NO_ILACE(1'b1),
         .MA(crtc_ma), .RA(crtc_ra), .test()
     );
     // The screen wrap: MA12 with the addressable latch's C0/C1 chooses how far

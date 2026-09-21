@@ -32,6 +32,11 @@ module bbc_keyboard (
     input  logic       kev_press,
     input  logic [3:0] kev_col,
     input  logic [2:0] kev_row,
+    // A PULSE, not a level.  It wins over kev_stb below, so a caller that
+    // holds it high holds the whole matrix at zero and no key can ever be
+    // set -- which is how the on-screen keyboard reached hardware with a
+    // highlight that moved and keys that did nothing (core_top.sv was
+    // passing osk_visible straight in).
     input  logic       kev_clear,      // release everything (menu opened, say)
 
     // the startup links, bit 0 = column 2 ... bit 7 = column 9.

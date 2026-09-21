@@ -970,6 +970,17 @@ module core_top
         .kev_col(pad_col), .kev_row(pad_row)
     );
 
+    //! Everything the pad was holding is released when the keyboard comes up
+    //! and again when it goes away -- on the EDGE of osk_visible, not for as
+    //! long as it is up.  Held as a level this line holds bbc_keyboard's
+    //! whole matrix at zero (`if (rst || kev_clear) keys <= '0;`), so the
+    //! `else if (kev_stb)` that sets a key is never reached and nothing the
+    //! on-screen keyboard sends can land.  On hardware that was a keyboard
+    //! whose highlight moved and whose keys did nothing.
+    logic osk_visible_d;
+    always_ff @(posedge clk_sys) osk_visible_d <= osk_visible;
+    wire  kev_clear = osk_visible ^ osk_visible_d;
+
     //! Only one of the two can be sending at a time -- the pad's mapping is
     //! inhibited while the keyboard is up -- so the two event streams merge
     //! without a queue.
@@ -1036,7 +1047,7 @@ module core_top
         .disc_ack(disc_ack), .disc_q(disc_q),
         .disc_present(disc_present), .disc_dsided(disc_dsided),
         .kev_stb(kev_stb), .kev_press(kev_press),
-        .kev_col(kev_col), .kev_row(kev_row), .kev_clear(osk_visible),
+        .kev_col(kev_col), .kev_row(kev_row), .kev_clear(kev_clear),
         .key_break(key_break), .links(g_links),
         .adc_ch0(12'h800), .adc_ch1(12'h800), .adc_fire_n(2'b11),
         .rgb(g_rgb), .hsync(g_hs), .vsync(g_vs),

@@ -67,6 +67,16 @@ port (
 
     VGA       : in  std_logic; -- Output Mode 7 as 624 line non-interlaced
 
+    -- MODIFIED (see modules/VENDOR.md).  Draw every field the same: keep the
+    -- interlace sync + video geometry -- ten scanlines a character row, 312
+    -- lines, 50 Hz -- but always the EVEN field, so the picture does not
+    -- alternate.  A monitor's phosphor and a viewer's eye merge the two
+    -- fields of a real Beeb; a fixed-pixel panel fed one field per frame
+    -- does not, and shows the difference as a shimmer in the text.  Measured
+    -- on this core's boot screen before the flag: frames 20 ms apart differed
+    -- by 1,142 pixels, frames 40 ms apart were identical.
+    NO_ILACE  : in  std_logic;
+
     -- Memory interface
     MA        : out std_logic_vector(13 downto 0);
     RA        : out std_logic_vector(4 downto 0);
@@ -185,7 +195,7 @@ begin
     r00_h_total_hit <= '1' when h_counter = r00_h_total  else '0';
 
     -- Indcates a new frame will start on the next clock tick.
-    new_frame <= '1' when r00_h_total_hit = '1' and eof_latched = '1' and (r08_interlace(0) = '0' or field_counter(0) = '0' or extra_scanline = '1' or VGA = '1') else '0';
+    new_frame <= '1' when r00_h_total_hit = '1' and eof_latched = '1' and (r08_interlace(0) = '0' or field_counter(0) = '0' or extra_scanline = '1' or VGA = '1' or NO_ILACE = '1') else '0';
 
     -- ===========================================================================
     --
@@ -493,7 +503,7 @@ begin
     end process;
 
     -- Select between vs_odd and vs_even based on interlace state
-    vs <= vs_odd when r08_interlace(0) = '1' and VGA = '0' and odd_field = '0' else vs_even;
+    vs <= vs_odd when r08_interlace(0) = '1' and VGA = '0' and NO_ILACE = '0' and odd_field = '0' else vs_even;
     VSYNC <= vs; -- External VSYNC driven directly from internal signal
 
     -- Vertical Display Enable
@@ -521,7 +531,11 @@ begin
                 -- Enable the display when C4 = C9 = 0
                 v_display <= '1';
                 -- Latch odd field so it's stable for the whole field
-                odd_field <= field_counter(0);
+                if NO_ILACE = '1' then
+                    odd_field <= '0';
+                else
+                    odd_field <= field_counter(0);
+                end if;
             elsif row_counter = r06_v_displayed and v_display = '1' then
                 -- Disable the display when C4 = R6, irrespective of C9
                 v_display <= '0';

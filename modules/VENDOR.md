@@ -27,7 +27,7 @@ tools/vhdl2v.sh modules/cpu-t65 T65        # and so on, per the table
 
 ## Modifications
 
-Two vendored files are changed, and each change is marked `MODIFIED` in place:
+Three vendored files are changed, and each change is marked `MODIFIED` in place:
 
 - **`video-saa5050/saa5050.vhd`** — upstream instantiates
   `saa5050_rom_dual_port`, which carries the teletext font as a literal table
@@ -72,3 +72,17 @@ the new commit here. Then run every bench: the generated Verilog is the build.
   this chip's was 525.211 Hz, which is 4 MHz / 32 / 238 exactly. Counting 1 to
   FREQ gives the datasheet's f = clock / (32 x N) and leaves N = 0 behaving as
   N = 1; after it, 527.423 Hz.
+
+- **`video-mc6845/mc6845.vhd`** — a `NO_ILACE` input, wired high by
+  `rtl/bbcmicro_core.sv`. The BBC programs this CRTC for interlace sync and
+  video, so the field number becomes the low bit of the scanline address
+  (`RA <= line_counter(4 downto 1) & odd_field`) and one field's vsync is
+  delayed by half a line. That is correct, and on a CRT the two fields merge.
+  On the Pocket's OLED they do not: measured on the boot screen, frames 20 ms
+  apart differed by 1,142 pixels while frames 40 ms apart were identical, and
+  on hardware it read as a shimmer in the text that left a ghost on the panel.
+  With `NO_ILACE` high the geometry is untouched — ten scanlines a character
+  row, 312 lines — but `odd_field` is held at zero, the even field's vsync is
+  always selected, and a new frame starts every field instead of every second
+  one, so every frame is the same picture. `tools/check_frames.py` is the
+  gate: 1,142 differing pixels before, 0 after.
