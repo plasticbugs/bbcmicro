@@ -18,7 +18,7 @@ implementations that have been running BBC software for a decade
 | HD6845S CRTC | Mike Stirling's `mc6845` | 50.00 Hz, 640×256 of active picture, MODE 7, 1 and 2 seen |
 | Video ULA | Mike Stirling's `vidproc` | Exile's MODE 7 title page against MAME's render of it: 89.19% of the lit pixels agree, the rest one-dot stroke edges from sampling 12 teletext dots at 16 |
 | SAA5050 teletext | Mike Stirling's `saa5050` + `rtl/bbc_charrom.sv` | same comparison; font from the user's own romset |
-| SN76489A @ 4 MHz | BeebFpga's `sn76489` | — (nothing has been listened to) |
+| SN76489A @ 4 MHz | BeebFpga's `sn76489` | a BASIC `SOUND` note against MAME's recording of the same: 527.423 Hz against 527.426, level within 1% |
 | Intel 8271 + disc | `rtl/i8271.sv` | issues and answers exactly the command sequence MAME's DFS sends over a whole Exile boot, at the disc's own 64 µs a byte |
 | RAM, MOS, sideways ROMs, font | block RAM, filled by the loader | image byte-identical to MAME's regions (`tools/verify_rom.py`) |
 | on-screen keyboard | `rtl/bbc_osk.sv` | every panel pixel matches the generator, and a press sends the right matrix position (`sim/run_osk.sh`) |
@@ -29,9 +29,10 @@ implementations that have been running BBC software for a decade
 
 What is proven, and by what:
 
-- **Exile loads from the disc image and runs**: SHIFT+BREAK reaches the title
-  page, SPACE walks the intro pages, and the game's own F0–F7 menu comes up in
-  a bitmap mode (`artifacts/play/`, `sim/run_boot.sh`)
+- **Exile loads from the disc image and plays**: SHIFT+BREAK reaches the title
+  page, SPACE walks the intro pages, the game's own F0–F7 menu comes up, and
+  F0 starts the game — the player in a cave, drawn in a bitmap mode
+  (`artifacts/game/`, `sim/run_boot.sh`)
 - the machine boots to `BBC Computer 32K / Acorn DFS / BASIC / >` in MODE 7,
   at 50.00 Hz with 640×256 of active picture
 - Exile's title page compared with MAME's render of the same page: 89.19% of
@@ -50,12 +51,21 @@ What is proven, and by what:
 - every byte of a disc image survives the download FIFO and comes back through
   the controller's port (`sim/run_mem.sh`)
 - the on-screen keyboard draws pixel-for-pixel what its generator drew
+- **the sound is the same note at the same level as MAME's**: a
+  `SOUND 1,-15,100,50` typed into BASIC, recorded at 48 kHz from both, is
+  527.423 Hz here against MAME's 527.426 (the same divider, 4 MHz / 32 / 237,
+  counted over a thousand cycles) with the AC RMS ratio 1.009, and silence is
+  exactly zero
+- **it fits and closes timing**: +0.380 ns setup and no negative slack
+  anywhere in the report — setup, hold, recovery, removal and minimum pulse
+  width, on every clock and both corners — with the worst path the SDRAM
+  capture, where the SDC says to expect it
 
 What is **not** proven:
 
-- no sound has been listened to or measured
-- the game has been reached but not played: no frame of Exile's own
-  gameplay has been compared with MAME
+- no sound has been listened to, and no game's sound has been compared
+- no frame of Exile's own gameplay has been compared with MAME; the game
+  screens that have been compared are its teletext ones
 - the teletext path is about three characters later than the bitmap path and
   one later than the hardware's; the display window is placed to hide it
   (docs/core-design.md section 6) and the latency itself is untouched
