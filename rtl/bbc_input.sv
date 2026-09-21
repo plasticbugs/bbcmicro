@@ -50,6 +50,7 @@ module bbc_input (
     localparam logic [6:0] K_ESCAPE = {4'd0, 3'd7};
     localparam logic [6:0] K_SHIFT  = {4'd0, 3'd0};
     localparam logic [6:0] K_CTRL   = {4'd1, 3'd0};
+    localparam logic [6:0] K_CAPS   = {4'd0, 3'd4};
     localparam logic [6:0] K_UP     = {4'd9, 3'd3};
     localparam logic [6:0] K_DOWN   = {4'd9, 3'd2};
     localparam logic [6:0] K_LEFT   = {4'd9, 3'd1};
@@ -124,11 +125,39 @@ module bbc_input (
                       2'd2: dpadsel = K_COMMA_L;
                       default: dpadsel = K_COMMA_R;
                   endcase
-            default: case (dir)                  // W A S D
+            4'd3: case (dir)                     // W A S D
                       2'd0: dpadsel = K_W;
                       2'd1: dpadsel = K_S;
                       2'd2: dpadsel = K_A;
                       default: dpadsel = K_D;
+                  endcase
+            // CAPS LOCK and CTRL as left and right is a real BBC convention:
+            // they are the two keys furthest apart under the left hand, and
+            // a game using them pairs them with whatever it likes for up and
+            // down, so they appear with each of the three common pairs.
+            4'd4: case (dir)                     // : / with CAPS CTRL
+                      2'd0: dpadsel = K_COLON;
+                      2'd1: dpadsel = K_SLASH;
+                      2'd2: dpadsel = K_CAPS;
+                      default: dpadsel = K_CTRL;
+                  endcase
+            4'd5: case (dir)                     // A Z with CAPS CTRL
+                      2'd0: dpadsel = K_A;
+                      2'd1: dpadsel = K_Z;
+                      2'd2: dpadsel = K_CAPS;
+                      default: dpadsel = K_CTRL;
+                  endcase
+            4'd6: case (dir)                     // cursor up/down, CAPS CTRL
+                      2'd0: dpadsel = K_UP;
+                      2'd1: dpadsel = K_DOWN;
+                      2'd2: dpadsel = K_CAPS;
+                      default: dpadsel = K_CTRL;
+                  endcase
+            default: case (dir)                  // Z X with , . above and
+                      2'd0: dpadsel = K_COMMA_L; // below, the other pairing
+                      2'd1: dpadsel = K_COMMA_R; // games use for up and down
+                      2'd2: dpadsel = K_Z;
+                      default: dpadsel = K_X;
                   endcase
         endcase
     endfunction

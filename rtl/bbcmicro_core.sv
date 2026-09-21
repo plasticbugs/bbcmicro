@@ -386,14 +386,30 @@ module bbcmicro_core (
     // -- which is what the picture looked like.  The window follows the
     // ULA's own teletext bit, sampled at the hsync edge so it cannot move
     // inside a line.
-    // 248, not 247: the bitmap figure came from reading a MODE 1 cursor
-    // block off a rendered frame by eye, which is good to about a dot, and on
-    // hardware the window was one dot early -- a column of border down the
-    // left and the picture's last column missing on the right.  The teletext
-    // figure is not a guess of that kind: it is the peak of an alignment
-    // sweep against MAME's own render, and stays.
-    localparam int H_START_BITMAP = 248;
-    localparam int H_START_TTXT   = 274;
+    // Where the window starts is MEASURED from the CRTC every frame, not
+    // counted from the hsync edge.  A game reprograms the CRTC to put its
+    // picture where it wants it -- Arcadians shifts it eight dots from where
+    // the OS leaves it -- and against a fixed window that came off the
+    // right-hand edge, by a different amount in every game.  A monitor's
+    // overscan hides that; a panel with no overscan cannot.
+    //
+    // So: latch the dot at which the CRTC's display enable rises, once a
+    // frame, and add what this core's own pipeline costs after it.  Those
+    // two delays are the measured ones -- one ULA character for the bitmap
+    // path, about four for the teletext path (docs/core-design.md section 6)
+    // -- and they are properties of this core, not of the machine, so they
+    // stay constants while the position follows the game.
+    // Measured from DE, not from hsync: the CRTC's own display enable is a
+    // character time behind the count the registers imply, and anchoring on
+    // it absorbs that too.  With PIPE_TTXT at 66 the Exile title page sat 15
+    // dots left of where it had been, so 51.
+    // Both measured against this anchoring: at 0 and 51 the MODE 1 prompt
+    // sat 8 dots right of where it belongs while the Exile title page landed
+    // exactly on the alignment MAME's own render peaks at (lit 19..639).  The
+    // extra dot on the bitmap figure is the one reported from hardware as a
+    // column missing off the right.
+    localparam int PIPE_BITMAP = 9;
+    localparam int PIPE_TTXT   = 51;
     localparam int H_WIDTH = 640;
     // 32 lines after the vsync edge, which is where the CRTC starts its
     // picture in every mode this machine uses.  Read off the registers the
@@ -406,19 +422,32 @@ module bbcmicro_core (
     localparam int V_START = 32;        // lines after the vsync edge
     localparam int V_HEIGHT = 256;
 
-    logic [10:0] hcnt, h_start;
+    logic [10:0] hcnt, h_start, de_at;
     logic  [9:0] vcnt;
-    logic        hs_d, vs_d;
+    logic        hs_d, vs_d, de_d2, seen_de;
     wire         hs_rise = crtc_hs && !hs_d;
     wire         vs_rise = crtc_vs && !vs_d;
+    wire         de_rise = crtc_de && !de_d2;
 
     always_ff @(posedge clk) begin
         if (cen_16m) begin
-            hs_d <= crtc_hs;
-            vs_d <= crtc_vs;
-            hcnt <= hs_rise ? 11'd0 : (hcnt + 11'd1);
-            if (hs_rise)
-                h_start <= ttxt_sel ? 11'(H_START_TTXT) : 11'(H_START_BITMAP);
+            hs_d  <= crtc_hs;
+            vs_d  <= crtc_vs;
+            de_d2 <= crtc_de;
+            hcnt  <= hs_rise ? 11'd0 : (hcnt + 11'd1);
+
+            // the first display dot of the frame, kept for the whole of the
+            // next one so the window cannot move inside a frame
+            if (de_rise && !seen_de) begin
+                de_at   <= hcnt;
+                seen_de <= 1'b1;
+            end
+            if (vs_rise) begin
+                seen_de <= 1'b0;
+                h_start <= de_at + (ttxt_sel ? 11'(PIPE_TTXT)
+                                             : 11'(PIPE_BITMAP));
+            end
+
             if (vs_rise)      vcnt <= 10'd0;
             else if (hs_rise) vcnt <= vcnt + 10'd1;
         end
