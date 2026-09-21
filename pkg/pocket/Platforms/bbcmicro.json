@@ -1,8 +1,8 @@
 {
     "platform": {
-        "category": "Arcade",
+        "category": "Computer",
         "name": "BBC Micro",
         "year": 1980,
-        "manufacturer": "MANUFACTURER"
+        "manufacturer": "Acorn"
     }
 }

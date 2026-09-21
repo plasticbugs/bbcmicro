@@ -6,7 +6,7 @@
         "bbcmicro"
       ],
       "shortname": "bbcmicro",
-      "description": "BBC Microcomputer Model B (Acorn, 1981)",
+      "description": "BBC Microcomputer Model B (Acorn, 1980)",
       "author": "plasticbugs",
       "url": "https://github.com/plasticbugs/bbcmicro",
       "version": "0.1.0",

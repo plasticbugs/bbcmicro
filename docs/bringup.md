@@ -16,9 +16,16 @@ Cores/plasticbugs.bbcmicro/…             the core
 Platforms/bbcmicro.json                  the platform entry
 ```
 
-Copy with `cp -X` and `COPYFILE_DISABLE=1`, or the card fills with `._*`
-files. Check the md5 of `bbcmicro.rom` on the card against the one the builder
-printed — a truncated copy is the first thing to rule out.
+Copy with `cp -X` and `COPYFILE_DISABLE=1` — and then delete the `._*` files
+anyway, because on this machine neither stops `cp -R` writing them to an exFAT
+card:
+
+    find /Volumes/POCKET/Cores/<yours> /Volumes/POCKET/Assets/<yours> \
+        -name '._*' -delete
+
+Check the md5 of every file on the card against the build, not just
+`bbcmicro.rom`; `md5` is not always on the PATH a script runs with, and a
+comparison of two empty strings passes silently.
 
 ## What should happen
 
