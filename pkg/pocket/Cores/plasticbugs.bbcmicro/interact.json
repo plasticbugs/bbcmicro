@@ -118,7 +118,7 @@
         "enabled": true,
         "persist": true,
         "address": "0xF2000000",
-        "defaultval": 256,
+        "defaultval": 1,
         "mask": "0xFFFFF0FF",
         "options": [
           { "name": "SPACE", "value": "0x00000000" },
@@ -146,7 +146,7 @@
         "enabled": true,
         "persist": true,
         "address": "0xF2000000",
-        "defaultval": 16384,
+        "defaultval": 4,
         "mask": "0xFFFF0FFF",
         "options": [
           { "name": "SPACE", "value": "0x00000000" },
@@ -174,7 +174,7 @@
         "enabled": true,
         "persist": true,
         "address": "0xF2000000",
-        "defaultval": 2097152,
+        "defaultval": 2,
         "mask": "0xFF0FFFFF",
         "options": [
           { "name": "SPACE", "value": "0x00000000" },

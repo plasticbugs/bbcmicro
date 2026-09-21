@@ -14,9 +14,12 @@ So this checks the things the firmware cares about and a parser does not:
 
   * every file is valid JSON and carries the magic the firmware looks for;
   * interact variable ids are unique -- the fault above;
-  * names fit (the longest the MSX core ships, which the firmware accepts,
-    is 17; the spec's limit is 23);
-  * a list's options each have a name and a value, and there are at most 16;
+  * a list's `defaultval` is an INDEX into its options, not the value to
+    write -- which is what the second flash died on, with indices of 256,
+    16384 and 2097152 into lists of sixteen.  Every core that loads uses
+    0 to 3 there, and in each one it selects the option whose value is
+    zero;
+  * names fit, and a list's options each have a name and a value;
   * data slot ids are unique and required slots name a filename;
   * the files are no larger than the largest this firmware is known to
     accept, because size is the one limit that cannot be read off the file.
@@ -27,9 +30,19 @@ import json
 import os
 import sys
 
-NAME_MAX = 23          # per Analogue's core JSON spec
+# These are not from a document.  They are what a firmware that accepts a
+# file is observed to accept, surveyed across the seventeen cores installed
+# on the author's own Pocket (tools/survey_interact.py):
+#
+#     variables      up to 14      option values   up to 0x00C00000
+#     bytes          up to 7,597   options a list  up to 16
+#     longest name   26            defaultval      0..3
+#
+# The 23 characters an earlier version of this file called a limit was a
+# guess, and wrong: OpenJazz ships a 26-character name and loads.
+NAME_MAX = 26
 OPTS_MAX = 16
-SIZE_MAX = 8192        # the MSX2 core's interact.json is 7,771 and loads
+SIZE_MAX = 7600
 
 MAGIC = {
     'core.json': 'APF_VER_1', 'data.json': 'APF_VER_1',
@@ -86,6 +99,10 @@ def main(argv):
                     o = x.get('options', [])
                     if not o:
                         fault(path, f'{name!r} is a list with no options')
+                    dv = x.get('defaultval')
+                    if not isinstance(dv, int) or not 0 <= dv < max(len(o), 1):
+                        fault(path, f'{name!r} defaultval is {dv!r}; it must be '
+                                    f'an index into its {len(o)} options')
                     if len(o) > OPTS_MAX:
                         fault(path, f'{name!r} has {len(o)} options, over {OPTS_MAX}')
                     for k in o:

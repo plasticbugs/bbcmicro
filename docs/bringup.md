@@ -53,7 +53,32 @@ comparison of two empty strings passes silently.
    the highlight, A or B presses, and SHIFT, CTRL, CAPS and SHIFT LOCK latch
    so you can type the combinations. The same chord puts it away.
 
+## If the core will not load at all
+
+`Load error in "<file>" - General Error` is all the firmware says, and
+Analogue publish no limits worth relying on.  The cards people already own
+are better evidence: every core installed on one loads, so whatever those
+files do is allowed.  `tools/survey_interact.py /Volumes/POCKET/Cores`
+prints a row per core -- variable count, size, longest name, options per
+list, largest option value, and the set of `defaultval`s -- and this core's
+row sits among them.  Anything where this core is the outlier is the place
+to look.
+
+What that survey has already settled, against seventeen cores:
+
+| | accepted | note |
+|---|---|---|
+| `defaultval` on a list | 0–3 | an **index into the options**, not the value to write |
+| variables | up to 14 | |
+| file size | up to 7,597 bytes | |
+| longest name | 26 characters | |
+| options in a list | 16 | |
+| largest option value | 0x00C00000 | masks routinely exceed 0x80000000, so the parser is unsigned |
+
+`tools/check_json.py` enforces those before packaging.
+
 ## If something is wrong
+
 
 Turn on **Core Settings → Bring-up: panel**. Four rows of 32 green and grey
 squares appear on the bottom sixteen lines of the picture. Green is 1. Read
