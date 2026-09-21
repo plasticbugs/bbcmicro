@@ -47,4 +47,4 @@ if strays:
 
 print(f"packaged -> {OUT}")
 print("copy Cores/, Platforms/ and Assets/ from that folder onto the SD card root")
-print("build the ROM with:  python3 mra_build.py bbcmicro.mra bbcmicro.zip")
+print("build the ROM with:  python3 mra_build.py bbcmicro.mra bbcb.zip")
