@@ -25,51 +25,80 @@ implementations that have been running BBC software for a decade
 
 ## Status
 
-**It has never run on a Pocket.** Everything below is simulation.
+**It runs on an Analogue Pocket.** Exile and Chuckie Egg load from disc images
+and play; the keyboard types, the joystick works, sound comes out. What
+follows is what has been measured and what has not.
 
-What is proven, and by what:
+Held against MAME, which is the oracle here:
 
-- **Exile loads from the disc image and plays**: SHIFT+BREAK reaches the title
-  page, SPACE walks the intro pages, the game's own F0–F7 menu comes up, and
-  F0 starts the game — the player in a cave, drawn in a bitmap mode
-  (`artifacts/game/`, `sim/run_boot.sh`)
-- the machine boots to `BBC Computer 32K / Acorn DFS / BASIC / >` in MODE 7,
-  at 50.00 Hz with 640×256 of active picture
-- Exile's title page compared with MAME's render of the same page: 89.19% of
-  the pixels lit in either agree, at the peak of the alignment sweep, and the
-  disagreements are one-dot stroke edges from sampling 12 teletext dots at 16
-- typing through the key matrix works: `MODE 1` typed on the pad's key events
-  switches the machine to MODE 1 and redraws the prompt
 - the ROM image the core is fed is byte-identical to the regions MAME loads
   (`tools/verify_rom.py`)
+- 18,831 consecutive CPU writes are identical to MAME's over a whole boot
+  (`tools/diff_bus.py -writes`)
 - the disc controller is asked for, and answers, the same command sequence
-  MAME's DFS issues over a whole Exile boot
-- **the whole machine on the Pocket's own memory glue** — real
-  `bbcmicro_mem`, real SDRAM controller, behavioural chip, both images pushed
-  in at the loader's rate — draws a frame identical to the fast bench's, all
-  163,840 pixels (`sim/run_pocket.sh`)
-- every byte of a disc image survives the download FIFO and comes back through
-  the controller's port (`sim/run_mem.sh`)
-- the on-screen keyboard draws pixel-for-pixel what its generator drew
-- **the sound is the same note at the same level as MAME's**: a
-  `SOUND 1,-15,100,50` typed into BASIC, recorded at 48 kHz from both, is
-  527.423 Hz here against MAME's 527.426 (the same divider, 4 MHz / 32 / 237,
-  counted over a thousand cycles) with the AC RMS ratio 1.009, and silence is
-  exactly zero
-- **it fits and closes timing**: +0.380 ns setup and no negative slack
-  anywhere in the report — setup, hold, recovery, removal and minimum pulse
-  width, on every clock and both corners — with the worst path the SDRAM
-  capture, where the SDC says to expect it
+  MAME's DFS issues over a whole Exile boot, at the disc's own 64 µs a byte
+- Exile's MODE 7 title page against MAME's render of it: 89.19% of the pixels
+  lit in either agree, at the peak of an alignment sweep, the rest being
+  one-dot stroke edges from sampling 12 teletext dots at 16
+- a BASIC `SOUND` note: 527.423 Hz against MAME's 527.426 — the same divider,
+  4 MHz / 32 / 237, counted over a thousand cycles — with the AC RMS ratio
+  1.009 and silence at exactly zero
+
+Checked on the machine itself:
+
+- the raster is right: `MODE0:DRAW1279,0` draws a line across the full 640
+  dots and it reaches both edges with none of it missing, on hardware and in
+  simulation (docs/core-design.md section 6)
+- three consecutive frames of a still picture are identical — the core does
+  not alternate fields, which a fixed panel would show as a shimmer and an
+  OLED would hold (`tools/check_frames.py`)
+- the whole machine on the Pocket's own memory glue draws a frame identical
+  to the fast bench's, all 163,840 pixels (`sim/run_pocket.sh`)
+- every byte of two disc images survives the download FIFO and reads back
+  through the controller's port (`sim/run_mem.sh`)
+- it fits and closes timing: no negative slack on any check at either corner,
+  with the worst path the SDRAM capture, where the SDC says to expect it
 
 What is **not** proven:
 
-- no sound has been listened to, and no game's sound has been compared
-- no frame of Exile's own gameplay has been compared with MAME; the game
-  screens that have been compared are its teletext ones
+- no frame of a game's own *gameplay* has been compared with MAME; the screens
+  compared are teletext ones
+- no game's sound has been compared with MAME — one BASIC note has
 - the teletext path is about three characters later than the bitmap path and
-  one later than the hardware's; the display window is placed to hide it
+  one later than the hardware's; the display window is placed to match it
   (docs/core-design.md section 6) and the latency itself is untouched
-- the core has never been fitted, timed or flashed
+- 1 MHz and 2 MHz character clocks use one measured pipeline figure each; a
+  mode with an unusual colour depth may sit a dot from centre
+
+## Controls
+
+| | |
+|---|---|
+| **L + R + Select** | the on-screen keyboard, and dismiss it |
+| **L + R + Start** | BREAK |
+| d-pad, A B X Y | press keys — which ones is a Core Setting |
+
+On the on-screen keyboard the d-pad moves a whole key at a time, A or B
+presses, and SHIFT, CTRL, CAPS LOCK and SHIFT LOCK latch so combinations can
+be typed one key at a time. SHIFT swaps the panel for the legends the machine
+prints on the front of each key, so the punctuation it types is on the keys
+rather than remembered. A latched modifier is drawn amber.
+
+## Core Settings
+
+| setting | what it does |
+|---|---|
+| Auto-boot disc | fits keyboard link 6, so BREAK boots the disc as SHIFT+BREAK does on a real machine |
+| Joystick | the pad drives the analogue port instead of pressing keys; A and B are the two fire buttons |
+| D-pad keys | eight sets: cursor keys, `: / Z X`, `A Z , .`, `W A S D`, and CAPS/CTRL for left and right paired with each of the three common up/down pairs |
+| A / B / X / Y button key | eight keys each: SPACE, RETURN, SHIFT, ESCAPE, Z, X, `:` and `/` |
+| Screen Shape | 4:3, or fill the Pocket's screen |
+| Scanlines, Shadow Mask | the Pocket's own filters |
+
+A disc that has no `!BOOT` file will answer BREAK with `File not found`. Type
+`*CAT` to list it, then `*RUN <name>` for a game or `CHAIN "<name>"` for a
+BASIC loader. Note that DFS filenames are the machine's characters, not
+ASCII: Chuckie Egg's is `CH#EGG`, and the `#` is SHIFT+3.
 
 ## Building the ROM image
 
@@ -102,10 +131,22 @@ synthesis only — a couple of minutes, and it catches what Verilator cannot.
 ```sh
 sim/lint.sh                    # every module on its own; seconds
 sim/run_osk.sh                 # the on-screen keyboard against its generator
+sim/run_mem.sh                 # every byte of two disc images, through the
+                               # download FIFO at the loader's own rate
+sim/run_pocket.sh -compare ../artifacts/boot
+                               # the whole machine on the real memory glue,
+                               # required to draw the same frame as the fast
+                               # bench, pixel for pixel
 sim/run_boot.sh -ms 1200 -snap 1100 -dumpram /tmp/ram.bin
                                # boot the machine and capture a frame
-sim/run_boot.sh -ms 4000 -disc ../game.ssd -links 0x10 -break 1700
+sim/run_boot.sh -ms 4000 -disc ../game.ssd -links 0 -break 1700
                                # with a disc, and BREAK to boot it
+tools/check_frames.py artifacts/still -w 640 -h 256
+                               # three consecutive frames of a still picture
+                               # must be identical: a core that alternates
+                               # fields marks the Pocket's OLED
+tools/check_json.py pkg/pocket --active 640x256
+                               # what the Pocket's firmware silently refuses
 ```
 
 `tools/rgb2png.py` turns the captured frames into PNGs;
