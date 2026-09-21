@@ -1,3 +1,10 @@
+**0.1.1** corrects one line that was wrong in 0.1.0: the ROM builder's
+instructions in `Assets/bbcmicro/common/README.txt` named a `bbcmicro.zip`
+romset, which does not exist. The romset is MAME's **`bbcb`**, as the MRA and
+the README have always said. The gateware is unchanged from 0.1.0.
+
+---
+
 The BBC Microcomputer Model B for the Analogue Pocket: a 6502 at 2 MHz with
 the 1 MHz cycle stretching, 32K, MODE 0 to 7 including teletext, the
 SN76489's four channels, and an Intel 8271 disc controller reading `.ssd` and
