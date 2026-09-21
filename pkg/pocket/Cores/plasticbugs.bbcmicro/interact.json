@@ -168,6 +168,28 @@
         ]
       },
       {
+        "name": "Joystick",
+        "id": 5,
+        "type": "check",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFFBF",
+        "value": "0x00000040"
+      },
+      {
+        "name": "Joystick reversed",
+        "id": 6,
+        "type": "check",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFF7F",
+        "value": "0x00000080"
+      },
+      {
         "name": "Bring-up: panel",
         "id": 20,
         "type": "check",

@@ -20,13 +20,23 @@ import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
-# What the panel calls a key, and what character it produces unshifted and
-# shifted.  Only the printable ones a test is likely to type.
-SHIFTED = {
-    '!': '1', '"': '2', '#': '3', '$': '4', '%': '5', '&': '6', "'": '7',
-    '(': '8', ')': '9', '=': '-', '*': ':', '+': ';', '<': ',', '>': '.',
-    '?': '/', '@': '@', '_': '^',
-}
+# Which key SHIFT types each character on, read from the panel generator's
+# own table so there is one copy and not two.  The first version of this
+# file carried a second, hand-written one with the PC convention in it --
+# it had underscore as SHIFT and something, where the BBC has a key of its
+# own for it (column 8, row 2) -- and the tool typed ~ where the test
+# wanted _.
+def shifted_map():
+    import ast
+    src = open(os.path.join(ROOT, 'make_osk_panel.py')).read()
+    tree = ast.parse(src)
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], 'id', '') == 'SHIFTED':
+            base = ast.literal_eval(node.value)
+            # the generator maps key -> its shifted legend; this wants the
+            # other direction, and 'GBP' is what it calls the pound sign
+            return {v: k for k, v in base.items()}
+    raise SystemExit('make_osk_panel.py has no SHIFTED table')
 
 
 def layout():
@@ -50,6 +60,7 @@ def main(argv):
     hold = float(argv[4]) if len(argv) > 4 else 80.0
 
     keys = layout()
+    SHIFTED = shifted_map()
     shift = keys['SHF']
     events, t = [], start
     for ch in text:

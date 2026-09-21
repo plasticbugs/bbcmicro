@@ -389,7 +389,15 @@ module bbcmicro_core (
     localparam int H_START_BITMAP = 247;
     localparam int H_START_TTXT   = 274;
     localparam int H_WIDTH = 640;
-    localparam int V_START = 24;        // lines after the vsync edge
+    // 32 lines after the vsync edge, which is where the CRTC starts its
+    // picture in every mode this machine uses.  Read off the registers the
+    // OS writes: MODE 0-6 is 39 rows of 8 with vsync at row 35, so
+    // (39-35)*8 = 32; MODE 7 is 31 rows of 10 with vsync at 28 and two lines
+    // of vertical adjust, so 3*10+2 = 32.  It was 24, which put eight lines
+    // of border at the top and took eight off the bottom -- a bitmap mode is
+    // exactly 256 lines and has none to spare, so the bottom of a game was
+    // simply missing.
+    localparam int V_START = 32;        // lines after the vsync edge
     localparam int V_HEIGHT = 256;
 
     logic [10:0] hcnt, h_start;

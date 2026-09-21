@@ -973,7 +973,7 @@ module core_top
         .map_a(mod_sw2[3:0]), .map_b(mod_sw1[3:0]),
         .map_x(mod_sw1[7:4]), .map_y(mod_sw2[7:4]),
         .map_select(4'd4), .map_start(4'd1),
-        .inhibit(osk_visible),
+        .inhibit(osk_visible || joy_on),
         .kev_stb(pad_stb), .kev_press(pad_press),
         .kev_col(pad_col), .kev_row(pad_row)
     );
@@ -996,6 +996,32 @@ module core_top
     wire       kev_press = osk_stb ? osk_press : pad_press;
     wire [3:0] kev_col   = osk_stb ? osk_col   : pad_col;
     wire [2:0] kev_row   = osk_stb ? osk_row   : pad_row;
+
+    //! ------------------------------------------------------------------
+    //! The analogue port, driven from the pad.
+    //!
+    //! The BBC's joysticks are potentiometers read by the uPD7002, and its
+    //! fire buttons arrive on the system VIA's PB4 and PB5, active low
+    //! (docs/hardware.md section 5).  The Pocket has a d-pad and not a stick,
+    //! so each axis is one of three values: hard over one way, hard over the
+    //! other, or centred.
+    //!
+    //! Which way round is a property of the machine, not of this core: on a
+    //! BBC the pots are wired so that pushing LEFT reads high and RIGHT reads
+    //! low, which is why BASIC games test ADVAL(1) against a large number for
+    //! left.  "Joystick reversed" is there because that is a claim about
+    //! hardware this core has not measured, and a game that moves the wrong
+    //! way should not need a new build to fix.
+    wire        joy_on  = mod_sw0[6];
+    wire        joy_rev = mod_sw0[7];
+    wire        joy_use = joy_on && !osk_visible;
+    wire [11:0] joy_hi  = joy_rev ? 12'h000 : 12'hFFF;
+    wire [11:0] joy_lo  = joy_rev ? 12'hFFF : 12'h000;
+    wire [11:0] joy_x   = p1_left ? joy_hi : p1_right ? joy_lo : 12'h800;
+    wire [11:0] joy_y   = p1_up   ? joy_hi : p1_down  ? joy_lo : 12'h800;
+    wire [11:0] g_adc0  = joy_use ? joy_x : 12'h800;
+    wire [11:0] g_adc1  = joy_use ? joy_y : 12'h800;
+    wire  [1:0] g_fire_n = joy_use ? ~{p1_btn_b, p1_btn_a} : 2'b11;
 
     //! Bring-up switches from the modifier word (the "Bring-up" entries of
     //! interact.json; take them off the menu for a release, leave them here):
@@ -1057,7 +1083,7 @@ module core_top
         .kev_stb(kev_stb), .kev_press(kev_press),
         .kev_col(kev_col), .kev_row(kev_row), .kev_clear(kev_clear),
         .key_break(key_break), .links(g_links),
-        .adc_ch0(12'h800), .adc_ch1(12'h800), .adc_fire_n(2'b11),
+        .adc_ch0(g_adc0), .adc_ch1(g_adc1), .adc_fire_n(g_fire_n),
         .rgb(g_rgb), .hsync(g_hs), .vsync(g_vs),
         .hblank(g_hb), .vblank(g_vb), .pix_ce(g_pix_ce), .de(g_de),
         .snd(g_snd),
