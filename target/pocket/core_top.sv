@@ -920,7 +920,7 @@ module core_top
     //! against the panel generator's own bitmap by sim/run_osk.sh).  While it
     //! is up it owns the pad, and its key events go to the machine in place
     //! of the pad's mapping.
-    wire        osk_visible, osk_active, osk_pix, osk_break;
+    wire        osk_visible, osk_active, osk_pix, osk_break, osk_hi;
     wire        osk_stb, osk_press;
     wire  [3:0] osk_col;
     wire  [2:0] osk_row;
@@ -935,8 +935,16 @@ module core_top
         .kev_stb(osk_stb), .kev_press(osk_press),
         .kev_col(osk_col), .kev_row(osk_row),
         .key_break(osk_break),
-        .active(osk_active), .pix(osk_pix)
+        .active(osk_active), .pix(osk_pix), .hi(osk_hi)
     );
+
+    //! A latched modifier -- SHIFT, CTRL, CAPS LOCK, SHIFT LOCK -- is drawn
+    //! amber instead of white, so "is CAPS down?" is a glance and not a
+    //! guess.  SHIFT and SHIFT LOCK also swap the panel for its shifted
+    //! legends, which says the same thing across the whole keyboard.
+    wire [7:0] osk_r = osk_pix ? 8'hFF : 8'h00;
+    wire [7:0] osk_g = osk_pix ? (osk_hi ? 8'hC0 : 8'hFF) : 8'h00;
+    wire [7:0] osk_b = osk_pix ? (osk_hi ? 8'h00 : 8'hFF) : 8'h00;
 
     //! Which key each control presses.  All five choices live in the
     //! modifier word (0xF2000000): B at bits 8-11, X at 12-15, A at 16-19,
@@ -1111,9 +1119,9 @@ module core_top
     wire [7:0] ovl_r, ovl_g, ovl_b;
     dbg_overlay ovl (
         .clk(clk_sys), .cen_pix(g_pix_ce), .enable(ovl_en), .de(g_de), .vsync(g_vs),
-        .r_in(osk_active ? (osk_pix ? 8'hFF : 8'h00) : g_rgb[23:16]),
-        .g_in(osk_active ? (osk_pix ? 8'hFF : 8'h00) : g_rgb[15:8]),
-        .b_in(osk_active ? (osk_pix ? 8'hFF : 8'h00) : g_rgb[7:0]),
+        .r_in(osk_active ? osk_r : g_rgb[23:16]),
+        .g_in(osk_active ? osk_g : g_rgb[15:8]),
+        .b_in(osk_active ? osk_b : g_rgb[7:0]),
         .status(ovl_status), .r_out(ovl_r), .g_out(ovl_g), .b_out(ovl_b)
     );
 

@@ -23,8 +23,8 @@
 #include <vector>
 
 static const int W = 640, H = 256, HTOTAL = 1024, VTOTAL = 312;
-static const int PW = 256, PH = 72, X0 = 64, Y0 = 96;
-static const int MAP_BASE = 0x1000;
+static const int PW = 256, PH = 72, X0 = 64, Y0 = 172;
+static const int MAP_BASE = 0x1200, SPAN_BASE = 0x1260;
 
 static Vbbc_osk *dut;
 static long tcount = 0;
@@ -34,6 +34,7 @@ struct Event { int col, row, press; };
 static std::vector<Event> events;
 
 // one frame of raster; returns the captured (active, pix) pair per pixel
+static std::vector<uint8_t> *g_hi = nullptr;
 static void frame(std::vector<uint8_t> *act, std::vector<uint8_t> *pix) {
     for (int line = 0; line < VTOTAL; line++) {
         for (int h = 0; h < HTOTAL; h++) {
@@ -47,6 +48,7 @@ static void frame(std::vector<uint8_t> *act, std::vector<uint8_t> *pix) {
                 if (c == 0 && act && dut->de && line < H && h < W) {
                     (*act)[line * W + h] = dut->active;
                     (*pix)[line * W + h] = dut->pix;
+                    if (g_hi) (*g_hi)[line * W + h] = dut->hi;
                 }
             }
         }
@@ -60,6 +62,7 @@ int main(int argc, char **argv) {
         if (!strcmp(argv[i], "-out") && i + 1 < argc) out = argv[++i];
 
     // the panel generator's output, read as the truth for both checks
+    std::vector<uint8_t> hi(W * H, 0);
     std::vector<uint8_t> rom;
     FILE *f = fopen("rtl/rom/osk_panel.hex", "r");
     if (!f) { fprintf(stderr, "run me from the repository root\n"); return 2; }
@@ -92,19 +95,39 @@ int main(int argc, char **argv) {
 
     std::fill(act.begin(), act.end(), 0);
     std::fill(pix.begin(), pix.end(), 0);
+    g_hi = &hi;
     frame(&act, &pix);
+
+    // a picture of it, drawn the way core_top draws it, to look at
+    {
+        std::string path = out + "/panel.rgb";
+        std::vector<uint8_t> fb(W * H * 3, 0);
+        for (int i = 0; i < W * H; i++) {
+            if (!act[i] || !pix[i]) continue;
+            fb[i * 3 + 0] = 0xFF;
+            fb[i * 3 + 1] = hi[i] ? 0xC0 : 0xFF;
+            fb[i * 3 + 2] = hi[i] ? 0x00 : 0xFF;
+        }
+        FILE *o = fopen(path.c_str(), "wb");
+        if (o) { fwrite(fb.data(), 1, fb.size(), o); fclose(o);
+                 printf("wrote %s (%dx%d)\n", path.c_str(), W, H); }
+    }
 
     // it opens on SPACE: grid cell (6, 5)
     int cur_cx = 6, cur_cy = 5;
     long wrong = 0, first_x = -1, first_y = -1;
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {
-            bool inside = (x >= X0 && x < X0 + PW * 2 && y >= Y0 && y < Y0 + PH * 2);
+            bool inside = (x >= X0 && x < X0 + PW * 2 && y >= Y0 && y < Y0 + PH);
             if (act[y * W + x] != inside) { wrong++; continue; }
             if (!inside) continue;
-            int px = (x - X0) / 2, py = (y - Y0) / 2;
+            int px = (x - X0) / 2, py = y - Y0;
             int bit = (rom[py * (PW / 8) + px / 8] >> (7 - (px & 7))) & 1;
-            bool hl = (px / 16 == cur_cx) && (py >= cur_cy * 12) && (py < (cur_cy + 1) * 12);
+            // the highlight is the whole KEY, whose extent the span map holds
+            int sp = rom[SPAN_BASE + cur_cy * 16 + cur_cx];
+            int k0 = sp >> 4, kn = sp & 15;
+            bool hl = (px / 16 >= k0) && (px / 16 < k0 + kn) &&
+                      (py >= cur_cy * 12) && (py < (cur_cy + 1) * 12);
             int want = hl ? !bit : bit;
             if (pix[y * W + x] != want) {
                 if (wrong == 0) { first_x = x; first_y = y; }
@@ -121,7 +144,7 @@ int main(int argc, char **argv) {
         for (int py = 0; py < 12; py++) {
             std::string got, want;
             for (int px = 200; px < 256; px++) {
-                int x = X0 + px * 2, y = Y0 + py * 2;
+                int x = X0 + px * 2, y = Y0 + py;
                 got += pix[y * W + x] ? '#' : '.';
                 int bit = (rom[py * (PW / 8) + px / 8] >> (7 - (px & 7))) & 1;
                 want += bit ? '#' : '.';
@@ -134,23 +157,120 @@ int main(int argc, char **argv) {
     events.clear();
     dut->right = 1; frame(nullptr, nullptr); dut->right = 0;
     frame(nullptr, nullptr);
-    cur_cx = (cur_cx + 1) % 16;
-    dut->press = 1; frame(nullptr, nullptr);
-    dut->press = 0;
-    for (int i = 0; i < 8; i++) frame(nullptr, nullptr);
+    {
+        int sp = rom[SPAN_BASE + cur_cy * 16 + cur_cx];
+        int k0 = sp >> 4, kn = sp & 15;
+        cur_cx = (k0 + kn >= 16) ? 0 : k0 + kn;
+        printf("right from a %d-cell key: the cursor is now at column %d\n",
+               kn, cur_cx);
+    }
+    auto press_once = [&]() {
+        events.clear();
+        dut->press = 1; frame(nullptr, nullptr);
+        dut->press = 0;
+        for (int i = 0; i < 8; i++) frame(nullptr, nullptr);
+    };
+    auto key_at = [&](int cx, int cy) { return rom[MAP_BASE + cy * 16 + cx]; };
+    auto show = [&](const char *what) {
+        printf("%s: %zu event(s)\n", what, events.size());
+        for (auto &e : events)
+            printf("   %s col %d row %d (code %02X)\n",
+                   e.press ? "press  " : "release", e.col, e.row,
+                   (e.col << 3) | e.row);
+    };
 
-    int want_key = rom[MAP_BASE + cur_cy * 16 + cur_cx];
-    printf("pressed cell (%d,%d): key %02X, %zu events\n", cur_cx, cur_cy,
-           want_key, events.size());
+    // CAPS LOCK is a latching key: one event down, and it stays down, so the
+    // combinations that need it can be typed one key at a time
+    press_once();
+    int caps = key_at(cur_cx, cur_cy);
+    show("CAPS LOCK pressed");
+    if (events.size() != 1 || !events[0].press ||
+        ((events[0].col << 3) | events[0].row) != caps) {
+        printf("  FAIL: a latching key should send one press and hold it\n");
+        bad++;
+    }
+
+    // ... and while it is down the panel says so, in the cells it occupies
+    std::fill(hi.begin(), hi.end(), 0);
+    frame(&act, &pix);
+    long lit_hi = 0;
+    for (auto v : hi) lit_hi += v;
+    int sp_caps = rom[SPAN_BASE + cur_cy * 16 + cur_cx];
+    long want_hi = (long)(sp_caps & 15) * 16 * 2 * 12;   // cells, 2x across
+    printf("CAPS held: %ld pixels marked as latched (want %ld)\n",
+           lit_hi, want_hi);
+    if (lit_hi != want_hi) { printf("  FAIL\n"); bad++; }
+
+    // pressing it again lets it up
+    press_once();
+    show("CAPS LOCK pressed again");
+    if (events.size() != 1 || events[0].press) {
+        printf("  FAIL: the second press should release it\n");
+        bad++;
+    }
+
+    // a key that is not a modifier is a keystroke: down, then up a few
+    // frames later
+    dut->up = 1; frame(nullptr, nullptr); dut->up = 0;
+    frame(nullptr, nullptr);
+    cur_cy--;                       // row 4, column 0, which is SHIFT
+    dut->right = 1; frame(nullptr, nullptr); dut->right = 0;
+    frame(nullptr, nullptr);
+    {                               // one cell right of SHIFT is Z
+        int sp = rom[SPAN_BASE + cur_cy * 16 + cur_cx];
+        cur_cx = (sp >> 4) + (sp & 15);
+    }
+    press_once();
+    int k = key_at(cur_cx, cur_cy);
+    show("a letter pressed");
     bool got_press = false, got_release = false;
     for (auto &e : events) {
         int code = (e.col << 3) | e.row;
-        if (code == want_key && e.press) got_press = true;
-        if (code == want_key && !e.press) got_release = true;
-        printf("   %s col %d row %d (code %02X)\n",
-               e.press ? "press  " : "release", e.col, e.row, code);
+        if (code == k && e.press) got_press = true;
+        if (code == k && !e.press) got_release = true;
     }
-    if (!got_press || !got_release) { printf("  FAIL: no press/release pair\n"); bad++; }
+    if (!got_press || !got_release) {
+        printf("  FAIL: no press/release pair for key %02X\n", k);
+        bad++;
+    }
+
+    // SHIFT down swaps the whole panel for the shifted legends, so the
+    // punctuation it types is printed on the keys.  Checked against the
+    // second page the generator rendered, not against a picture of it.
+    dut->left = 1; frame(nullptr, nullptr); dut->left = 0;
+    frame(nullptr, nullptr);
+    cur_cx = 0;                     // back to SHIFT on row 4
+    press_once();
+    show("SHIFT pressed");
+    std::fill(act.begin(), act.end(), 0);
+    std::fill(pix.begin(), pix.end(), 0);
+    frame(&act, &pix);
+    long shifted_wrong = 0;
+    for (int y = Y0; y < Y0 + PH; y++) {
+        for (int x = X0; x < X0 + PW * 2; x++) {
+            int px = (x - X0) / 2, py = y - Y0;
+            int bit = (rom[0x900 + py * (PW / 8) + px / 8] >> (7 - (px & 7))) & 1;
+            int sp = rom[SPAN_BASE + cur_cy * 16 + cur_cx];
+            bool hl = (px / 16 >= (sp >> 4)) && (px / 16 < (sp >> 4) + (sp & 15)) &&
+                      (py >= cur_cy * 12) && (py < (cur_cy + 1) * 12);
+            if (pix[y * W + x] != (hl ? !bit : bit)) shifted_wrong++;
+        }
+    }
+    printf("with SHIFT down, pixels differing from the SHIFTED page: %ld\n",
+           shifted_wrong);
+    if (shifted_wrong) { printf("  FAIL\n"); bad++; }
+    {
+        std::string path = out + "/panel_shifted.rgb";
+        std::vector<uint8_t> fb(W * H * 3, 0);
+        for (int i = 0; i < W * H; i++) {
+            if (!act[i] || !pix[i]) continue;
+            fb[i * 3 + 0] = 0xFF;
+            fb[i * 3 + 1] = hi[i] ? 0xC0 : 0xFF;
+            fb[i * 3 + 2] = hi[i] ? 0x00 : 0xFF;
+        }
+        FILE *o = fopen(path.c_str(), "wb");
+        if (o) { fwrite(fb.data(), 1, fb.size(), o); fclose(o); }
+    }
 
     // dismissing it hands the pad back
     dut->chord = 1; frame(nullptr, nullptr);

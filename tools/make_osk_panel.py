@@ -28,13 +28,30 @@ import sys
 CELLS_X, CELLS_Y = 16, 6
 CELL_W, CELL_H = 16, 12
 W, H = CELLS_X * CELL_W, CELLS_Y * CELL_H
-MAP_BASE = 0x1000
-ROM_SIZE = 0x1060
+PAGE_BYTES = (CELLS_X * CELL_W // 8) * (CELLS_Y * CELL_H)   # 2,304 a page
+PAGE_BASE = (0x0000, 0x0900)    # unshifted legends, then shifted
+MAP_BASE = 0x1200               # matrix position, one byte a cell
+SPAN_BASE = 0x1260              # {start column, span}, one byte a cell
+ROM_SIZE = 0x12C0
+
+# What the machine prints on the front of each key, which is what SHIFT
+# types.  Letters are absent: the BBC's SHIFT does not change them (CAPS
+# LOCK does, and this font has no lower case), and a key missing from here
+# keeps its unshifted legend on the shifted page.
+SHIFTED = {
+    '1': '!', '2': '"', '3': '#', '4': '$', '5': '%', '6': '&', '7': "'",
+    '8': '(', '9': ')', '-': '=', '^': '~', '\\': '|',
+    ';': '+', ':': '*', '[': '{', ']': '}', '_': 'GBP',
+    ',': '<', '.': '>', '/': '?',
+}
 
 NO_KEY = 0x7E          # a cell with nothing in it
 BREAK_KEY = 0x7F       # the one key that is not in the matrix
 
 FONT = {  # 3x5, rows top-down, 3 bits each (MSB left)
+    "'": "010 010 000 000 000", '~': "000 001 111 100 000",
+    '|': "010 010 010 010 010", '{': "001 010 110 010 001",
+    '}': "100 010 011 010 100", 'GBP': "011 010 111 010 111",
     'A': "010 101 111 101 101", 'B': "110 101 110 101 110",
     'C': "011 100 100 100 011", 'D': "110 101 101 101 110",
     'E': "111 100 110 100 111", 'F': "111 100 110 100 100",
@@ -110,9 +127,10 @@ LAYOUT = [
 ]
 
 
-def render():
+def render(shifted=False):
     img = [[0] * W for _ in range(H)]
     keymap = [NO_KEY] * (CELLS_X * CELLS_Y)
+    spanmap = [0] * (CELLS_X * CELLS_Y)
 
     def putc(ch, x, y):
         rows = FONT[ch].split()
@@ -122,6 +140,8 @@ def render():
                     img[y + r][x + c] = 1
 
     for label, row, col, span, kc, kr in LAYOUT:
+        if shifted:
+            label = SHIFTED.get(label, label)
         x0, y0 = col * CELL_W, row * CELL_H
         w, h = span * CELL_W, CELL_H
         for x in range(x0, x0 + w):
@@ -137,25 +157,34 @@ def render():
         code = BREAK_KEY if kc is None else ((kc << 3) | kr)
         for c in range(col, col + span):
             keymap[row * CELLS_X + c] = code
-    return img, keymap
+            # every cell of a key carries the key's own extent, so the
+            # highlight can cover it and the d-pad can step over it whole
+            spanmap[row * CELLS_X + c] = (col << 4) | span
+    return img, keymap, spanmap
 
 
-def rom_bytes(img, keymap):
+def rom_bytes(pages, keymap, spanmap):
     data = bytearray(ROM_SIZE)
-    for y in range(H):
-        for xb in range(W // 8):
-            b = 0
-            for i in range(8):
-                b = (b << 1) | img[y][xb * 8 + i]
-            data[y * (W // 8) + xb] = b
+    for page, img in enumerate(pages):
+        base = PAGE_BASE[page]
+        for y in range(H):
+            for xb in range(W // 8):
+                b = 0
+                for i in range(8):
+                    b = (b << 1) | img[y][xb * 8 + i]
+                data[base + y * (W // 8) + xb] = b
     for i, k in enumerate(keymap):
         data[MAP_BASE + i] = k
+    for i, v in enumerate(spanmap):
+        data[SPAN_BASE + i] = v
     return data
 
 
 def main():
-    img, keymap = render()
-    data = rom_bytes(img, keymap)
+    base, keymap, spanmap = render(shifted=False)
+    shift, _, _ = render(shifted=True)
+    data = rom_bytes((base, shift), keymap, spanmap)
+    img = base
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
     os.makedirs(os.path.join(root, 'rtl/rom'), exist_ok=True)
 
@@ -168,12 +197,16 @@ def main():
             f.write(f"{a:04X} : {b:02X};\n")
         f.write("END;\n")
     keys = sum(1 for _, _, _, _, kc, _ in LAYOUT if kc is not None)
-    print(f"osk_panel: {W}x{H}, {len(LAYOUT)} keys ({keys} in the matrix), "
-          f"{ROM_SIZE} bytes")
+    wide = sum(1 for _, _, _, sp, _, _ in LAYOUT if sp > 1)
+    print(f"osk_panel: two {W}x{H} pages, {len(LAYOUT)} keys "
+          f"({keys} in the matrix, {wide} wider than one cell), "
+          f"{len(SHIFTED)} with a shifted legend, {ROM_SIZE} bytes")
 
     if '--preview' in sys.argv:
-        for y in range(H):
-            print(''.join('#' if v else '.' for v in img[y]))
+        for name, page in (('unshifted', base), ('shifted', shift)):
+            print(f"--- {name}")
+            for y in range(H):
+                print(''.join('#' if v else '.' for v in page[y]))
 
     if '--png' in sys.argv:
         import struct
@@ -181,26 +214,27 @@ def main():
         scale = 3
         fg, bg = (255, 255, 255), (24, 28, 48)
         rows = bytearray()
-        for y in range(H):
-            line = bytearray()
-            for x in range(W):
-                line += bytes(fg if img[y][x] else bg) * scale
-            for _ in range(scale):
-                rows += b'\x00' + line
+        for page in (base, shift):
+            for y in range(H):
+                line = bytearray()
+                for x in range(W):
+                    line += bytes(fg if page[y][x] else bg) * scale
+                for _ in range(scale):
+                    rows += b'\x00' + line
 
         def chunk(tag, payload):
             return (struct.pack('>I', len(payload)) + tag + payload +
                     struct.pack('>I', zlib.crc32(tag + payload)))
 
         png = (b'\x89PNG\r\n\x1a\n'
-               + chunk(b'IHDR', struct.pack('>IIBBBBB', W * scale, H * scale,
-                                            8, 2, 0, 0, 0))
+               + chunk(b'IHDR', struct.pack('>IIBBBBB', W * scale,
+                                            H * scale * 2, 8, 2, 0, 0, 0))
                + chunk(b'IDAT', zlib.compress(bytes(rows), 9))
                + chunk(b'IEND', b''))
         path = os.path.join(root, 'docs/osk_panel.png')
         with open(path, 'wb') as f:
             f.write(png)
-        print(f"wrote {path} ({W*scale}x{H*scale})")
+        print(f"wrote {path} ({W*scale}x{H*scale*2}, both pages)")
 
 
 if __name__ == "__main__":
