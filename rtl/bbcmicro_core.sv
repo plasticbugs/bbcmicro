@@ -440,12 +440,26 @@ module bbcmicro_core (
             ula_2mhz <= cpu_do[4];
     end
 
-    logic [10:0] hcnt, h_start, de_at;
+    logic [10:0] hcnt, h_start, de_at, de_wide;
     logic  [9:0] vcnt;
-    logic        hs_d, vs_d, de_d2, seen_de;
+    logic        hs_d, vs_d, de_d2, seen_de, seen_end;
     wire         hs_rise = crtc_hs && !hs_d;
     wire         vs_rise = crtc_vs && !vs_d;
     wire         de_rise = crtc_de && !de_d2;
+    wire         de_fall = !crtc_de && de_d2;
+
+    // What the CRTC is actually displaying, and how wide, both measured on
+    // the frame before the one they are used for.  A narrower picture than
+    // the window is centred in it rather than left against one edge: MODE 1
+    // games that display fewer than 80 characters a line -- Labyrinth is one
+    // -- otherwise sit hard left with the slack all on the right.
+    wire [10:0] de_pad = (11'(H_WIDTH) > de_wide)
+                       ? ((11'(H_WIDTH) - de_wide) >> 1) : 11'd0;
+    wire [10:0] pipe   = ttxt_sel ? 11'(PIPE_TTXT)     :
+                         ula_2mhz ? 11'(PIPE_BITMAP_2M)
+                                  : 11'(PIPE_BITMAP_1M);
+    wire [10:0] h_next = (de_at + pipe > de_pad) ? (de_at + pipe - de_pad)
+                                                 : 11'd0;
 
     always_ff @(posedge clk) begin
         if (cen_16m) begin
@@ -454,17 +468,21 @@ module bbcmicro_core (
             de_d2 <= crtc_de;
             hcnt  <= hs_rise ? 11'd0 : (hcnt + 11'd1);
 
-            // the first display dot of the frame, kept for the whole of the
-            // next one so the window cannot move inside a frame
+            // the first display dot of the frame, and the end of that first
+            // line's display, kept for the whole of the next frame so the
+            // window cannot move inside one
             if (de_rise && !seen_de) begin
                 de_at   <= hcnt;
                 seen_de <= 1'b1;
             end
+            if (de_fall && seen_de && !seen_end) begin
+                de_wide  <= hcnt - de_at;
+                seen_end <= 1'b1;
+            end
             if (vs_rise) begin
-                seen_de <= 1'b0;
-                h_start <= de_at + (ttxt_sel  ? 11'(PIPE_TTXT)     :
-                                    ula_2mhz  ? 11'(PIPE_BITMAP_2M)
-                                              : 11'(PIPE_BITMAP_1M));
+                seen_de  <= 1'b0;
+                seen_end <= 1'b0;
+                h_start  <= h_next;
             end
 
             if (vs_rise)      vcnt <= 10'd0;
