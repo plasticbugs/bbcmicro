@@ -46,9 +46,15 @@ module bbc_rom (
     localparam logic [24:0] FONT_BASE = 25'h14000;
     localparam logic [24:0] IMG_END   = 25'h14400;
 
-    logic [7:0] paged [65536];
-    logic [7:0] mos   [16384];
-    logic [7:0] font  [1024];
+    // no_rw_check: the loader writes these while the machine is held in
+    // reset, so no read ever needs to see a write made on the same clock and
+    // the read-during-write bypass Quartus would otherwise build is pure
+    // cost.  It was not free: the longest path in the fit ran from the paged
+    // ROM's write-enable register, through that mux and cpu_di, into the
+    // 6502's ALU adder, and missed the cold corner by 0.255 ns.
+    (* ramstyle = "no_rw_check" *) logic [7:0] paged [65536];
+    (* ramstyle = "no_rw_check" *) logic [7:0] mos   [16384];
+    (* ramstyle = "no_rw_check" *) logic [7:0] font  [1024];
 
     logic dl_we_d;
     wire  take = dl_we && !dl_we_d;

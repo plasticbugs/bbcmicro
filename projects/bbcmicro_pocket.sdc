@@ -98,3 +98,28 @@ set_false_path -from [get_ports {cram0_dq[*] cram1_dq[*] cram0_wait cram1_wait}]
 set T65 [get_keepers {*|T65:*|*}]
 set_multicycle_path -setup 4 -from $T65 -to $T65
 set_multicycle_path -hold  3 -from $T65 -to $T65
+
+# The same enable, from the other side.  With T65's internal paths relaxed,
+# every path left near the edge ran from a memory into the CPU -- from the
+# block RAMs' own PORT_B_WRITE_ENABLE_REG, through the read-during-write
+# logic and cpu_di, into the 6502's ALU adder (measured: -0.255 ns cold,
+# then -0.139 ns hot on a later fit; the fit moves by half a nanosecond
+# between runs at this frequency, which is not a margin to flash from).
+#
+# Why this one qualifies:
+#
+#   * the destination is the same enable-gated state as above: T65 captures
+#     DI only on the clock where Enable is high;
+#   * the source is a memory whose CPU-side inputs -- address, write data and
+#     write enable -- are the CPU's own bus, which it drives at one enable and
+#     holds until the next.  The output register therefore settles within a
+#     clock of the cycle starting and does not move again for the remaining
+#     47.  Three clocks is an order of magnitude inside that.
+#
+# It is deliberately NOT `-to $T65` from everything.  The I/O the CPU polls --
+# the FDC's status in particular -- changes on clocks of its own, and a byte
+# that had not settled when the CPU sampled it could come out mixed rather
+# than merely early or late.  Those keep the single-cycle check.
+set CPU_MEM [get_keepers {*altsyncram*}]
+set_multicycle_path -setup 3 -from $CPU_MEM -to $T65
+set_multicycle_path -hold  2 -from $CPU_MEM -to $T65
