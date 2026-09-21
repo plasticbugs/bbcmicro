@@ -84,6 +84,22 @@ an RTL one: a nibble at bits 28-31 asks the Pocket to store 0xF0000000.
 
 `tools/check_json.py` enforces those before packaging.
 
+## If the picture is wrong before anything else is
+
+`video.json`'s `scaler_modes` must declare the size the core actually emits
+— `H_WIDTH` x `V_HEIGHT` in rtl/bbcmicro_core.sv, 640 x 256. The template
+arrived with an arcade board's 320 x 224 still in it, and on hardware that
+one line produced three separate-looking faults at once:
+
+| symptom | cause |
+|---|---|
+| the picture is squished horizontally | declared 320 wide, emitting 640 |
+| the bottom is cut off, keyboard included | declared 224 high, emitting 256; the on-screen keyboard is drawn on the bottom sixteen lines |
+| the whole image flickers | the scaler never settles on a frame size it is not being sent |
+
+`tools/check_json.py` reads the two constants out of the RTL and compares
+them, so the file and the core cannot drift apart again.
+
 ## If something is wrong
 
 

@@ -21,6 +21,13 @@ So this checks the things the firmware cares about and a parser does not:
     zero;
   * names fit, and a list's options each have a name and a value;
   * data slot ids are unique and required slots name a filename;
+  * video.json's scaler modes declare the size the core actually emits,
+    read out of rtl/bbcmicro_core.sv rather than typed again.  This one is
+    not a firmware rule, it is the fault it catches: the template shipped
+    320x224 from an arcade board while this core emits 640x256, and on
+    hardware that came out as a picture squished horizontally, the bottom
+    32 lines -- where the on-screen keyboard is drawn -- cut off, and the
+    whole image flickering;
   * the files are no larger than the largest this firmware is known to
     accept, because size is the one limit that cannot be read off the file.
 
@@ -28,6 +35,7 @@ It exits non-zero and prints every fault, not just the first.
 """
 import json
 import os
+import re
 import sys
 
 # These are not from a document.  They are what a firmware that accepts a
@@ -131,6 +139,23 @@ def main(argv):
                                         f'{len(k["name"])} characters')
                 if x.get('type') != 'action' and 'address' not in x:
                     fault(path, f'{name!r} has no address')
+
+        if base == 'video.json':
+            rtl = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               '..', 'rtl', 'bbcmicro_core.sv')
+            try:
+                src = open(rtl).read()
+                w = int(re.search(r'localparam int H_WIDTH\s*=\s*(\d+)', src).group(1))
+                h = int(re.search(r'localparam int V_HEIGHT\s*=\s*(\d+)', src).group(1))
+            except Exception as e:
+                fault(path, f'cannot read the core\'s window from {rtl}: {e}')
+                w = h = None
+            if w:
+                for i, m in enumerate(d['video'].get('scaler_modes', [])):
+                    if (m.get('width'), m.get('height')) != (w, h):
+                        fault(path, f'scaler_modes[{i}] says '
+                                    f'{m.get("width")}x{m.get("height")}, but the '
+                                    f'core emits {w}x{h}')
 
         if base == 'data.json':
             slots = d['data'].get('data_slots', [])
