@@ -1013,12 +1013,9 @@ module core_top
     //! hardware this core has not measured, and a game that moves the wrong
     //! way should not need a new build to fix.
     wire        joy_on  = mod_sw0[6];
-    wire        joy_rev = mod_sw0[7];
     wire        joy_use = joy_on && !osk_visible;
-    wire [11:0] joy_hi  = joy_rev ? 12'h000 : 12'hFFF;
-    wire [11:0] joy_lo  = joy_rev ? 12'hFFF : 12'h000;
-    wire [11:0] joy_x   = p1_left ? joy_hi : p1_right ? joy_lo : 12'h800;
-    wire [11:0] joy_y   = p1_up   ? joy_hi : p1_down  ? joy_lo : 12'h800;
+    wire [11:0] joy_x   = p1_left ? 12'hFFF : p1_right ? 12'h000 : 12'h800;
+    wire [11:0] joy_y   = p1_up   ? 12'hFFF : p1_down  ? 12'h000 : 12'h800;
     wire [11:0] g_adc0  = joy_use ? joy_x : 12'h800;
     wire [11:0] g_adc1  = joy_use ? joy_y : 12'h800;
     wire  [1:0] g_fire_n = joy_use ? ~{p1_btn_b, p1_btn_a} : 2'b11;

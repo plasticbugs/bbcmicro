@@ -386,7 +386,13 @@ module bbcmicro_core (
     // -- which is what the picture looked like.  The window follows the
     // ULA's own teletext bit, sampled at the hsync edge so it cannot move
     // inside a line.
-    localparam int H_START_BITMAP = 247;
+    // 248, not 247: the bitmap figure came from reading a MODE 1 cursor
+    // block off a rendered frame by eye, which is good to about a dot, and on
+    // hardware the window was one dot early -- a column of border down the
+    // left and the picture's last column missing on the right.  The teletext
+    // figure is not a guess of that kind: it is the peak of an alignment
+    // sweep against MAME's own render, and stays.
+    localparam int H_START_BITMAP = 248;
     localparam int H_START_TTXT   = 274;
     localparam int H_WIDTH = 640;
     // 32 lines after the vsync edge, which is where the CRTC starts its
