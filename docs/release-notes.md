@@ -1,7 +1,13 @@
-**0.1.1** corrects one line that was wrong in 0.1.0: the ROM builder's
-instructions in `Assets/bbcmicro/common/README.txt` named a `bbcmicro.zip`
-romset, which does not exist. The romset is MAME's **`bbcb`**, as the MRA and
-the README have always said. The gateware is unchanged from 0.1.0.
+**0.1.2** centres a picture narrower than the window. A game is free to tell
+the CRTC to display fewer characters than its mode's full width, and until now
+such a picture began at the window's left edge with all of the slack heaped on
+the right — MODE 1 games sat hard left, Labyrinth among them. The window now
+measures the display's width as well as its start and takes half the difference
+off the start. A full-width picture is untouched.
+
+0.1.1 corrected the ROM builder's instructions in
+`Assets/bbcmicro/common/README.txt`, which named a `bbcmicro.zip` romset that
+does not exist. It is MAME's **`bbcb`**.
 
 ---
 
