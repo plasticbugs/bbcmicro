@@ -109,7 +109,9 @@ LDA &8000:STA &70:LDA &F4:STA &FE30:CLI:RTS:]:CALL C%:P.?&70
 ```
 
 That prints `90` with the setting on and `255` with it off, and is the test
-`artifacts/swram/` holds against MAME. Note there is no `*SRLOAD`: that is a
+`artifacts/swram/` holds against MAME. `tools/make_swram_disc.py` puts the
+same program on a bootable disc, so BREAK answers the question without typing
+124 characters on the on-screen keyboard. Note there is no `*SRLOAD`: that is a
 Master command, and this is a Model B with MOS 1.20.
 
 A disc that has no `!BOOT` file will answer BREAK with `File not found`. Type

@@ -1,0 +1,25 @@
+                                        
+BBC Computer 32K                        
+                                        
+Acorn DFS                               
+                                        
+BASIC                                   
+                                        
+>*EXEC !BOOT                            
+>*BASIC                                 
+BASIC                                   
+                                        
+>DIM C% 50:P%=C%:[OPT 2:SEI:LDA _1:STA &
+FE30:LDA _&5A:STA &8000:LDA &8000:STA &7
+0:LDA &F4:STA &FE30:CLI:RTS:]:CALL C%   
+>P.'"&8000 READS &";~?&70               
+                                        
+&8000 READS &5A                         
+>IF ?&70=&5A THEN P."SIDEWAYS RAM: ON" E
+LSE P."SIDEWAYS RAM: OFF"               
+SIDEWAYS RAM: ON                        
+>                                       
+                                        
+                                        
+                                        
+                                        

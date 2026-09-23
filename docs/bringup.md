@@ -52,6 +52,20 @@ comparison of two empty strings passes silently.
 5. **L + R + Select** brings up the keyboard over the picture. The d-pad moves
    the highlight, A or B presses, and SHIFT, CTRL, CAPS and SHIFT LOCK latch
    so you can type the combinations. The same chord puts it away.
+6. **Sideways RAM**, if you are checking that: build the test disc with
+   `tools/make_swram_disc.py`, put the `.ssd` on the card, load it into
+   Drive 0 and press BREAK with **Auto-boot disc** on. It prints
+
+   ```
+   &8000 READS &5A
+   SIDEWAYS RAM: ON
+   ```
+
+   with the setting on, and `&FF` / `OFF` with it off. Those are the two
+   answers MAME gives for the same disc, in `artifacts/swram/`. Anything else
+   -- a hang, `Mistake`, a `Bad command` -- is worth reporting verbatim; the
+   value it prints is the byte read back out of the socket, so a third answer
+   says something more interesting than a wrong one.
 
 ## If the core will not load at all
 
