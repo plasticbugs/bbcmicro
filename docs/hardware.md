@@ -360,6 +360,15 @@ title EXILE, 7 files, boot option 3 (*EXEC), 800 sectors
   $.ExileMC  sector 231  Master Compact version
 ```
 
+`$.ExileSR` is not a way to test sideways RAM. It is machine code, load and
+exec both &1900, and `*RUN ExileSR` gets nowhere in **MAME** either, with or
+without `-romslot1 ram`: the screen never leaves the DFS banner and the 6502
+sits at a fixed address (&64FF with the RAM fitted, &1950 without). The disc's
+own loader does not reach it -- `$.EXILE` is a BASIC menu with no mention of
+`ExileSR` and no read of ROMSEL anywhere in its 4K. Whatever starts it is not
+on this disc, so it cannot serve as an oracle; the sideways RAM is checked
+against MAME by the routine in `artifacts/swram/` instead.
+
 So Exile needs BASIC (for `CHAIN`), DFS (for the disc) and about 25K of RAM —
 and it picks `ExileB` on a Model B.
 
