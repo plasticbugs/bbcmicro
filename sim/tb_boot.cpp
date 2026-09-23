@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
     long pc_lo = -1, pc_hi = -1;         // trace only this address range
     bool wonly = false;                  // and only the writes
     int links = 0;                       // the startup links: bit 0 is column 2
+    int swram = 0;                       // sideways RAM: 0 none, 2 sockets 1+2
     int predelay = 0;                    // extra clocks held in reset
     std::vector<double> snaps;
     std::vector<KeyEvent> keys;
@@ -84,6 +85,7 @@ int main(int argc, char **argv) {
             sscanf(argv[++i], "%lx,%lx", &pc_lo, &pc_hi);
         }
         else if (a == "-links" && i + 1 < argc) links = (int)strtol(argv[++i], nullptr, 0);
+        else if (a == "-swram" && i + 1 < argc) swram = atoi(argv[++i]);
         else if (a == "-snap" && i + 1 < argc) {
             char *s = strdup(argv[++i]);
             for (char *t = strtok(s, ","); t; t = strtok(nullptr, ","))
@@ -132,6 +134,7 @@ int main(int argc, char **argv) {
     dut->rst = 1; dut->pause = 0;
     dut->dl_we = 0; dut->kev_stb = 0; dut->key_break = 0;
     dut->links = links;                  // default: every link open, as MAME's
+    dut->swram_sel = swram;
     for (int i = 0; i < 32; i++) tick();
 
     printf("loading %ld bytes, one per %d clocks, strobe held %d\n", IMG, gap, hold);

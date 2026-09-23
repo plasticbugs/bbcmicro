@@ -27,6 +27,7 @@ module tb_boot_top (
     input  logic  [2:0] kev_row,
     input  logic        key_break,
     input  logic  [7:0] links,
+    input  logic  [1:0] swram_sel,
     input  logic        disc_loaded,
 
     // what the bench watches
@@ -74,7 +75,7 @@ module tb_boot_top (
         .disc_present({1'b0, disc_loaded}), .disc_dsided(2'b00),
         .kev_stb(kev_stb), .kev_press(kev_press),
         .kev_col(kev_col), .kev_row(kev_row), .kev_clear(1'b0),
-        .key_break(key_break), .links(links),
+        .key_break(key_break), .links(links), .swram_sel(swram_sel),
         .adc_ch0(12'h800), .adc_ch1(12'h800), .adc_fire_n(2'b11),
         .rgb(rgb), .hsync(hsync), .vsync(vsync),
         .hblank(hblank), .vblank(vblank), .pix_ce(pix_ce), .de(de),
