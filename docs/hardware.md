@@ -86,14 +86,29 @@ ROMSEL (`FE30`) on a Model B keeps only **bits 1:0** — four sockets, not
 sixteen (`m_romsel = data & 0x03`). Software written for expansion boards still
 writes 0-15; the top bits are simply dropped, so a write of 12 selects socket 0.
 
-A sideways **RAM** board is a socket answered by RAM instead of ROM. Nothing
-in the machine knows the difference: ROMSEL selects it the same way, and the
-only change is that a write to `8000-BFFF` lands somewhere instead of going
-nowhere. MAME models it as a slot option, `-romslot1 ram`. There is no MOS
-command to load one on a Model B -- `*SRLOAD` and `*SRWRITE` arrived with the
-Master -- so software that wants it writes ROMSEL itself, and cannot do that
-from BASIC, which lives in socket 3 and would fetch its next byte from the
-socket it just switched to.
+A sideways **RAM** board is a bank answered by RAM instead of ROM. Nothing in
+the machine knows the difference: ROMSEL selects it the same way, and the only
+change is that a write to `8000-BFFF` lands somewhere instead of going
+nowhere. There is no MOS command to load one on a Model B -- `*SRLOAD` and
+`*SRWRITE` arrived with the Master -- so software that wants it writes ROMSEL
+itself, and cannot do that from BASIC, which lives in bank 3 and would fetch
+its next byte from the bank it just switched to.
+
+**Where the RAM goes matters more than how much of it there is.** MAME models
+one socket at a time with `-romslot1 ram`, which is a bare motherboard with a
+RAM chip in it -- four banks, ROMSEL masked to two bits. That is not what
+anybody sold. The boards people fitted (Solidisk SWR16/32/64/128, Watford,
+Aries, Ramamp; MAME lists them under `-internal`) replaced the decoding and
+answered all sixteen banks, with the RAM at **4-7**. Software of the period
+looks there and nowhere else: Holed Out's sideways-RAM loader prints `BBC RAM
+VERSION LOADING INTO BANKS 4 AND 5`, probes those two banks, finds bank 4
+answering from the DNFS ROM it aliases onto, and stops with `Image has not
+loaded` without ever writing a byte to `8000-BFFF`.
+
+So this core's setting fits a 64K board rather than a RAM chip in a socket:
+ROMSEL widens to four bits, banks 4-7 are 64K of RAM, and banks 8-15 read
+`FF`. The MOS's reset scan walks all sixteen and rejects the empty ones on the
+copyright check, so the banner is unchanged -- measured, not assumed.
 
 ROM socket contents, matching MAME's `bbcb` ROM region exactly:
 

@@ -32,10 +32,13 @@ CONTROLS
   legends to the punctuation it types
 
 SIDEWAYS RAM
-* 32K in ROM sockets 1 and 2, kept
-  across BREAK
-* Switch to it with STA &FE30 from
-  a routine in main RAM, with SEI;
-  BASIC cannot, it is in socket 3
+* Fits a 64K board: banks 4 to 7,
+  kept across BREAK
+* Banks 4-7 are where software of
+  the period looks. A bare Model B
+  cannot reach them at all
+* Switch with STA &FE30 from a
+  routine in main RAM, with SEI;
+  BASIC cannot, it is in bank 3
 * No *SRLOAD: that is a Master
   command, this is a Model B

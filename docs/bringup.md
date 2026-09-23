@@ -61,7 +61,9 @@ comparison of two empty strings passes silently.
    SIDEWAYS RAM: ON
    ```
 
-   with the setting on, and `&FF` / `OFF` with it off. Those are the two
+   with the setting on. With it off the read comes back `&4C`, which is the
+   DNFS ROM's own first byte: a bare Model B cannot reach bank 4, so the
+   select aliases onto bank 0. Those are the two
    answers MAME gives for the same disc, in `artifacts/swram/`. Anything else
    -- a hang, `Mistake`, a `Bad command` -- is worth reporting verbatim; the
    value it prints is the byte read back out of the socket, so a third answer

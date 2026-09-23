@@ -46,8 +46,7 @@ module bbcmicro_core (
     input  logic        kev_clear,
     input  logic        key_break,      // BREAK is not in the matrix
     input  logic  [7:0] links,          // the startup links, bit 0 = column 2
-    input  logic  [1:0] swram_sel,      // sideways RAM: 0 none, 1 socket 1,
-                                        // 2 sockets 1 and 2
+    input  logic        swram_en,       // a sideways RAM board is fitted
 
     // ---------------- analogue port
     input  logic [11:0] adc_ch0, adc_ch1,
@@ -219,28 +218,28 @@ module bbcmicro_core (
                               fdc_sel || adlc_sel || adc_sel;
 
     // the paged ROM latch: a Model B decodes two bits of it
-    logic [1:0] romsel;
+    // A bare Model B latches two bits of ROMSEL -- `m_romsel = data & 0x03` in
+    // MAME's bbcb -- so writing 4 selects bank 0 and there are only ever four
+    // banks.  A sideways RAM board brought its own decoding and latched all
+    // four bits, which is the only way banks 4-7 exist at all.  The width is
+    // therefore part of what the option fits, not a detail underneath it.
+    logic [3:0] romsel;
     always_ff @(posedge clk) begin
-        if (!hard_reset_n) romsel <= 2'd0;
-        else if (cpu_cen && romsel_sel && !cpu_rnw) romsel <= cpu_do[1:0];
+        if (!hard_reset_n) romsel <= 4'd0;
+        else if (cpu_cen && romsel_sel && !cpu_rnw)
+            romsel <= swram_en ? cpu_do[3:0] : {2'b00, cpu_do[1:0]};
     end
 
     // =====================================================================
     // Memory
     // =====================================================================
-    // Which sockets hold RAM.  Sockets 0 and 3 carry DNFS and BASIC in this
-    // image, so only 1 and 2 are ever offered -- the same two a real board
-    // would have been fitted in.
-    wire [3:0] swram_slots = (swram_sel == 2'd1) ? 4'b0010 :
-                             (swram_sel == 2'd2) ? 4'b0110 : 4'b0000;
-
     wire  [7:0] paged_q, mos_q, font_q;
     wire  [9:0] font_addr;
     bbc_rom u_rom (
         .clk(clk),
         .dl_we(dl_we), .dl_addr(dl_addr), .dl_data(dl_data),
-        .paged_addr({romsel, cpu_a[13:0]}), .paged_q(paged_q),
-        .slots(swram_slots),
+        .paged_bank(romsel), .paged_a(cpu_a[13:0]), .paged_q(paged_q),
+        .swram_en(swram_en),
         .paged_we(cpu_cen && paged_sel && !cpu_rnw), .paged_din(cpu_do),
         .mos_addr(cpu_a[13:0]), .mos_q(mos_q),
         .font_addr(font_addr), .font_q(font_q),

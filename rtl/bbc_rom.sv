@@ -29,15 +29,21 @@ module bbc_rom (
     input  logic  [7:0] dl_data,
 
     // the CPU's two ROM windows
-    input  logic [15:0] paged_addr,     // {romsel[1:0], a[13:0]}
+    input  logic  [3:0] paged_bank,     // ROMSEL, all four bits
+    input  logic [13:0] paged_a,
     output logic  [7:0] paged_q,
 
-    // Sideways RAM.  A Model B has four sockets and this image fills two of
-    // them -- DNFS in 0, BASIC in 3 -- so 1 and 2 are the ones a real board
-    // would have RAM in, and that is what `slots` selects: a bit per socket,
-    // and only 1 and 2 are ever set.  A bank that is RAM answers reads from
-    // its own 16K instead of the image and takes writes from the CPU.
-    input  logic  [3:0] slots,          // which sockets are RAM
+    // Sideways RAM.  A bare Model B's ROMSEL latches two bits, so it has four
+    // banks and the image fills two of them -- DNFS in 0, BASIC in 3.  The
+    // boards people actually fitted RAM with brought their own decoding and
+    // answered all sixteen, with the RAM at 4-7; that is where software of the
+    // period looks, and Holed Out's disc says so on its own loading screen.
+    // So `swram_en` is a board being fitted, not a socket being filled: banks
+    // 4-7 become 64K of RAM, and banks 8-15 become empty sockets reading &FF.
+    //
+    // The caller keeps ROMSEL two bits wide when this is low, so banks 4-15
+    // cannot be reached at all and the machine is the bare one it was before.
+    input  logic        swram_en,
     input  logic        paged_we,       // the CPU is writing &8000-&BFFF
     input  logic  [7:0] paged_din,
     input  logic [13:0] mos_addr,
@@ -65,18 +71,14 @@ module bbc_rom (
     (* ramstyle = "no_rw_check" *) logic [7:0] mos   [16384];
     (* ramstyle = "no_rw_check" *) logic [7:0] font  [1024];
 
-    // 32K, enough for sockets 1 and 2.  It is not cleared on BREAK, because a
-    // real sideways RAM board is not either -- that is what makes it useful
-    // and what the persistence test checks.  It powers up as zeros, which the
-    // OS reads as an empty socket rather than as a ROM header it should try
-    // to enter.
-    (* ramstyle = "no_rw_check" *) logic [7:0] swram [32768];
-    // only 1 and 2, enforced here and not just asked for: the address below
-    // folds the socket number down to one bit, so a socket 0 or 3 set by
-    // mistake would alias onto 1's or 2's 16K rather than fail visibly
-    wire  [3:0] slots_ok = slots & 4'b0110;
-    wire        sw_hit  = slots_ok[paged_addr[15:14]];
-    wire [14:0] sw_addr = {paged_addr[15], paged_addr[13:0]};
+    // 64K: banks 4, 5, 6 and 7.  It is not cleared on BREAK, because a real
+    // board is not either -- that is what makes it useful, and what the
+    // persistence test checks.  It powers up as zeros, which the OS reads as
+    // an empty socket rather than as a ROM header it should try to enter.
+    (* ramstyle = "no_rw_check" *) logic [7:0] swram [65536];
+    wire        sw_hit    = swram_en && (paged_bank[3:2] == 2'b01);
+    wire        empty_hit = swram_en &&  paged_bank[3];      // banks 8-15
+    wire [15:0] sw_addr   = {paged_bank[1:0], paged_a};
 
     logic dl_we_d;
     wire  take = dl_we && !dl_we_d;
@@ -108,18 +110,20 @@ module bbc_rom (
     end
 
     logic [7:0] rom_q, sw_q;
-    logic       sw_hit_d;
+    logic       sw_hit_d, empty_hit_d;
     always_ff @(posedge clk) begin
-        rom_q    <= paged[paged_addr];
-        sw_q     <= swram[sw_addr];
-        sw_hit_d <= sw_hit;
+        rom_q       <= paged[{paged_bank[1:0], paged_a}];
+        sw_q        <= swram[sw_addr];
+        sw_hit_d    <= sw_hit;
+        empty_hit_d <= empty_hit;
         if (paged_we && sw_hit) swram[sw_addr] <= paged_din;
         mos_q   <= mos[mos_addr];
         font_q  <= font[font_addr];
     end
     // the read is a clock behind the address, so which array answered has to
-    // be a clock behind too
-    assign paged_q = sw_hit_d ? sw_q : rom_q;
+    // be a clock behind too.  An empty socket floats high, which is what the
+    // OS's ROM scan reads as "nothing here".
+    assign paged_q = sw_hit_d ? sw_q : empty_hit_d ? 8'hFF : rom_q;
 endmodule
 
 `default_nettype wire

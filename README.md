@@ -89,27 +89,33 @@ rather than remembered. A latched modifier is drawn amber.
 | setting | what it does |
 |---|---|
 | Auto-boot disc | fits keyboard link 6, so BREAK boots the disc as SHIFT+BREAK does on a real machine |
-| Sideways RAM | 32K of RAM in ROM sockets 1 and 2, the two this image leaves empty |
+| Sideways RAM | fits a 64K sideways RAM board: ROMSEL widens to four bits and banks 4-7 become RAM |
 | Joystick | the pad drives the analogue port instead of pressing keys; A and B are the two fire buttons |
 | D-pad keys | eight sets: cursor keys, `: / Z X`, `A Z , .`, `W A S D`, and CAPS/CTRL for left and right paired with each of the three common up/down pairs |
 | A / B / X / Y button key | eight keys each: SPACE, RETURN, SHIFT, ESCAPE, Z, X, `:` and `/` |
 | Screen Shape | 4:3, or fill the Pocket's screen |
 | Scanlines, Shadow Mask | the Pocket's own filters |
 
-**Sideways RAM** fits what a real board would have been fitted with: RAM in
-the paged &8000-&BFFF window, in the two of the four sockets this image leaves
-empty. It survives BREAK, as a real board does. Software that wants it finds
-it the usual way, by writing the socket number to ROMSEL at &FE30 -- though
-not from BASIC, which is itself in socket 3 and would fetch its next byte from
-the new socket. The routine has to run from main RAM with interrupts off:
+**Sideways RAM** fits a board, not a socket. A bare Model B latches only two
+bits of ROMSEL -- `m_romsel = data & 0x03` in MAME's `bbcb` -- so it has four
+banks and writing 4 selects bank 0. The boards people actually fitted RAM with
+brought their own decoding and answered all sixteen, with the RAM at banks
+4-7, and that is where software of the period looks: Holed Out's loader says
+`LOADING INTO BANKS 4 AND 5` on screen. So the setting widens ROMSEL to four
+bits and makes banks 4-7 into 64K of RAM; banks 8-15 read `&FF`, as empty
+sockets do. It survives BREAK, as a real board does.
+
+Software finds it by writing the bank number to ROMSEL at &FE30 -- though not
+from BASIC, which is itself in bank 3 and would fetch its next byte from the
+new bank. The routine has to run from main RAM with interrupts off:
 
 ```
-DIM C% 50:P%=C%:[OPT 2:SEI:LDA #1:STA &FE30:LDA #&5A:STA &8000
+DIM C% 50:P%=C%:[OPT 2:SEI:LDA #4:STA &FE30:LDA #&5A:STA &8000
 LDA &8000:STA &70:LDA &F4:STA &FE30:CLI:RTS:]:CALL C%:P.?&70
 ```
 
-That prints `90` with the setting on and `255` with it off, and is the test
-`artifacts/swram/` holds against MAME. `tools/make_swram_disc.py` puts the
+with `#4` for the bank. That prints `90` with the setting on and, with it off,
+whatever byte bank 4 aliases onto in DNFS. `artifacts/swram/` holds the runs. `tools/make_swram_disc.py` puts the
 same program on a bootable disc, so BREAK answers the question without typing
 124 characters on the on-screen keyboard. Note there is no `*SRLOAD`: that is a
 Master command, and this is a Model B with MOS 1.20.

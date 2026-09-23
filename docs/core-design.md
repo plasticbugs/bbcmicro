@@ -36,14 +36,14 @@ relocks. Measured from MAME: MODE 7 period 19.904 ms, Exile's menu screen
 |---|---|---|---|---|
 | main RAM | 32K × 8 | block RAM, dual port | the CPU and the video circuit read it in opposite phases of the 2 MHz cycle; both must be single-cycle | CPU one byte per 2 MHz cycle, video one byte per character time |
 | sideways ROM sockets | 64K × 8 | block RAM | `{romsel[1:0], a[13:0]}` — one flat power-of-two RAM, nothing for a synthesiser to interpret (section 5.18) | CPU only |
-| sideways RAM | 32K × 8 | block RAM | the "Sideways RAM" setting, sockets 1 and 2. A second flat RAM beside the ROM, not a writable slice of it: the ROM is loaded by the downloader and a socket has to be able to go back to being a ROM when the setting is turned off | CPU only |
+| sideways RAM | 64K × 8 | block RAM | the "Sideways RAM" setting: banks 4-7 of a four-bit ROMSEL. A second flat RAM beside the ROM, not a writable slice of it — the ROM is loaded by the downloader, and the banks have to go back to being unreachable when the setting is off | CPU only |
 | MOS ROM | 16K × 8 | block RAM | as above | CPU only |
 | SAA5050 font | 1K × 8 | block RAM | read once per character time in MODE 7 | video only |
 | disc images | 2 × 512K | **SDRAM** | 200K a side is far too much for block RAM | one byte per 64 µs while a transfer runs |
 | — | | SRAM (128K) | **unused**: the disc does not fit in it and nothing else needs it | |
 
-Block RAM used: 81K of ROM plus 32K of RAM plus 32K of sideways RAM plus the
-font and the on-screen keyboard's panel, about 162K of the 5CEBA4's 385K. The Pocket's SRAM is left
+Block RAM used: 81K of ROM plus 32K of RAM plus 64K of sideways RAM plus the
+font and the on-screen keyboard's panel, about 194K of the 5CEBA4's 385K. The Pocket's SRAM is left
 alone, so `USE_SRAM` is 0 and the template's SRAM self-test is replaced by a
 checksum of the loaded image (section 7).
 

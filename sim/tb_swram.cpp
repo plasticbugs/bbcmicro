@@ -1,11 +1,18 @@
-// Sideways RAM, on its own: does a socket selected as RAM take writes and
-// give them back, does a socket that is not selected still answer from the
-// ROM image, and does the choice of sockets do what the menu says?
+// Sideways RAM, on its own: with a board fitted, do banks 4-7 take writes and
+// give them back, do banks 0-3 still answer from the ROM image, do banks 8-15
+// read as empty sockets, and with no board fitted is nothing reachable above
+// bank 3 at all?
 //
 //   obj_swram/Vbbc_rom
 //
 // rtl/bbc_rom.sv answers a clock after its address, so every read here is
 // address, tick, tick, read -- the same shape the core uses.
+//
+// The module sees ROMSEL's four bits whatever `swram_en` says; it is the core
+// that narrows the register to two bits when no board is fitted, so the
+// "no board" checks below drive banks 0-3 only, which is all the core can
+// present.  The one check that drives a high bank with the board absent is
+// there to show the module does not answer from RAM on its own.
 #include "Vbbc_rom.h"
 #include "verilated.h"
 #include <cstdio>
@@ -14,16 +21,15 @@
 static Vbbc_rom *dut;
 static void tick() { dut->clk = 0; dut->eval(); dut->clk = 1; dut->eval(); }
 
-// bank 0..3, offset 0..0x3FFF
 static void wr(int bank, int off, int v) {
-    dut->paged_addr = (bank << 14) | off;
+    dut->paged_bank = bank; dut->paged_a = off;
     dut->paged_din = v; dut->paged_we = 1;
     tick();
     dut->paged_we = 0;
     tick();
 }
 static int rd(int bank, int off) {
-    dut->paged_addr = (bank << 14) | off;
+    dut->paged_bank = bank; dut->paged_a = off;
     tick(); tick();
     return dut->paged_q;
 }
@@ -31,7 +37,8 @@ static int rd(int bank, int off) {
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
     dut = new Vbbc_rom;
-    dut->dl_we = 0; dut->paged_we = 0; dut->slots = 0;
+    dut->dl_we = 0; dut->paged_we = 0; dut->swram_en = 0;
+    dut->paged_bank = 0; dut->paged_a = 0;
     dut->mos_addr = 0; dut->font_addr = 0;
     for (int i = 0; i < 8; i++) tick();
 
@@ -46,57 +53,57 @@ int main(int argc, char **argv) {
 
     int bad = 0;
     auto check = [&](const char *what, int got, int want) {
-        printf("  %-46s got %02X want %02X%s\n", what, got, want,
+        printf("  %-52s got %02X want %02X%s\n", what, got, want,
                got == want ? "" : "   FAIL");
         if (got != want) bad++;
     };
 
-    // with no socket set to RAM, every bank is the image and writes do nothing
-    dut->slots = 0;
-    check("sockets off: bank 1 reads the image", rd(1, 0), 0xB0);
+    // ---- no board fitted: the four banks of a bare machine, nothing else
+    dut->swram_en = 0;
+    check("no board: bank 0 is the image", rd(0, 0), 0xA0);
+    check("no board: bank 3 is the image", rd(3, 0), 0xD0);
     wr(1, 0, 0x5A);
-    check("sockets off: a write to bank 1 is ignored", rd(1, 0), 0xB0);
+    check("no board: a write to bank 1 is ignored", rd(1, 0), 0xB0);
+    wr(4, 0, 0x5A);
+    check("no board: bank 4 is not RAM either", rd(4, 0), 0xA0);
 
-    // socket 1 as RAM: it takes writes, and the others do not change
-    dut->slots = 0b0010;
-    check("socket 1 as RAM reads zero before anything is written", rd(1, 0), 0x00);
-    wr(1, 0, 0x5A);
-    wr(1, 0x3FFF, 0x5B);
-    check("socket 1 keeps what was written", rd(1, 0), 0x5A);
-    check("socket 1 keeps it at the top of the bank", rd(1, 0x3FFF), 0x5B);
-    check("socket 0 still answers from the image", rd(0, 0), 0xA0);
-    check("socket 2 still answers from the image", rd(2, 0), 0xC0);
-    check("socket 3 still answers from the image", rd(3, 0), 0xD0);
-    wr(2, 0, 0x77);
-    check("a write to socket 2 does not reach the image", rd(2, 0), 0xC0);
+    // ---- board fitted: 4-7 are RAM, 0-3 are still the image, 8-15 are empty
+    dut->swram_en = 1;
+    check("fitted: bank 4 reads zero before anything is written", rd(4, 0), 0x00);
+    check("fitted: bank 0 still answers from the image", rd(0, 0), 0xA0);
+    check("fitted: bank 3 still answers from the image", rd(3, 0), 0xD0);
+    check("fitted: bank 8 is an empty socket", rd(8, 0), 0xFF);
+    check("fitted: bank 15 is an empty socket", rd(15, 0), 0xFF);
 
-    // sockets 1 and 2 as RAM: two separate banks, not one mirrored twice
-    dut->slots = 0b0110;
-    wr(1, 0x100, 0x11);
-    wr(2, 0x100, 0x22);
-    check("socket 1 and socket 2 are separate 16K", rd(1, 0x100), 0x11);
-    check("socket 2 has its own contents", rd(2, 0x100), 0x22);
-    check("what socket 1 held earlier is still there", rd(1, 0), 0x5A);
+    wr(4, 0, 0x44);
+    wr(5, 0, 0x55);
+    wr(6, 0, 0x66);
+    wr(7, 0, 0x77);
+    wr(4, 0x3FFF, 0x4F);
+    wr(7, 0x3FFF, 0x7F);
+    check("fitted: bank 4 keeps what was written", rd(4, 0), 0x44);
+    check("fitted: bank 5 keeps its own byte", rd(5, 0), 0x55);
+    check("fitted: bank 6 keeps its own byte", rd(6, 0), 0x66);
+    check("fitted: bank 7 keeps its own byte", rd(7, 0), 0x77);
+    check("fitted: bank 4 at the top of its 16K", rd(4, 0x3FFF), 0x4F);
+    check("fitted: bank 7 at the top of its 16K", rd(7, 0x3FFF), 0x7F);
+    check("fitted: all four are separate 16K, bank 4 undisturbed", rd(4, 0), 0x44);
 
-    // turning the option off hands the sockets back to the image, and the
-    // contents survive for when it is turned on again
-    dut->slots = 0;
-    check("switched off, socket 1 is the image again", rd(1, 0), 0xB0);
-    dut->slots = 0b0010;
-    check("switched back on, socket 1 still holds its RAM", rd(1, 0), 0x5A);
-
-    // sockets 0 and 3 are masked off inside the module rather than merely
-    // asked not to be set: the RAM's address folds the socket number down to
-    // one bit, so a stray bit here would alias onto 1's or 2's 16K and show
-    // up as a corrupted ROM rather than as an obvious wrong answer
-    dut->slots = 0b1001;
-    check("a socket 0 asked for as RAM is refused", rd(0, 0), 0xA0);
-    check("a socket 3 asked for as RAM is refused", rd(3, 0), 0xD0);
+    // a write to a bank that is not RAM must not reach the image or the RAM
     wr(0, 0, 0x99);
-    wr(3, 0, 0x99);
-    dut->slots = 0b0110;
-    check("and a write through it did not disturb socket 1", rd(1, 0), 0x5A);
-    check("nor socket 2", rd(2, 0x100), 0x22);
+    wr(9, 0, 0x99);
+    check("fitted: a write to bank 0 does not reach the image", rd(0, 0), 0xA0);
+    check("fitted: a write to an empty bank stays empty", rd(9, 0), 0xFF);
+    check("fitted: and disturbed neither bank 4", rd(4, 0), 0x44);
+    check("fitted: nor bank 5", rd(5, 0), 0x55);
+
+    // ---- the board taken out and put back: contents survive, as a real
+    // board's do across BREAK, and nothing above bank 3 is reachable meanwhile
+    dut->swram_en = 0;
+    check("unfitted again: bank 4 is not RAM", rd(4, 0), 0xA0);
+    dut->swram_en = 1;
+    check("refitted: bank 4 still holds its RAM", rd(4, 0), 0x44);
+    check("refitted: bank 7 still holds its RAM", rd(7, 0x3FFF), 0x7F);
 
     delete dut;
     printf(bad ? "\nFAIL\n" : "\nPASS\n");

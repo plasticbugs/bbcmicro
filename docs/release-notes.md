@@ -1,17 +1,29 @@
-**0.2.0** adds **Sideways RAM**: 32K in ROM sockets 1 and 2, the two sockets
-this image leaves empty, kept across BREAK as a real board's would be.
+**0.3.0** moves **Sideways RAM** to where software actually looks for it.
 
-Software reaches it the way it always did, by writing the socket number to
-ROMSEL at `&FE30` — though not from BASIC, which lives in socket 3 and would
-fetch its next byte from the socket it had just selected. The routine has to
-run from main RAM with interrupts off. There is no `*SRLOAD`: that is a Master
-command, and this is a Model B with MOS 1.20.
+0.2.0 put 32K in banks 1 and 2 — a RAM chip in a spare socket of a bare
+motherboard, which is what MAME models with `-romslot1 ram`, and which is not
+a thing anybody sold. The boards people fitted (Solidisk, Watford, Aries,
+Ramamp) replaced the machine's decoding and answered all sixteen banks, with
+the RAM at **4-7**, and that is the only place period software looks. Holed
+Out's loader says so on screen — `BBC RAM VERSION LOADING INTO BANKS 4 AND 5`
+— then probes bank 4, finds the DNFS ROM that bank 4 aliases onto on a bare
+Model B, and stops with `Image has not loaded` without writing a byte.
 
-`tools/make_swram_disc.py` in the repository builds a one-file disc that
-answers the question on BREAK, so the check costs a button press instead of
-124 keystrokes on the on-screen keyboard. It prints `&8000 READS &5A` and
-`SIDEWAYS RAM: ON`, or `&FF` and `OFF` with the setting off — the same two
-screens MAME gives for the same disc.
+So the setting now fits a **64K board**: ROMSEL widens from two bits to four,
+banks 4-7 become 64K of RAM, and banks 8-15 read `&FF` as empty sockets do. It
+survives BREAK. With the setting off, ROMSEL stays two bits and the machine is
+the bare Model B it always was, picture unchanged to the pixel.
+
+**If you used 0.2.0's sideways RAM, banks 1 and 2 are no longer RAM.** Nothing
+shipped could have depended on that — the whole point is that software looks
+at 4-7 — but the test disc from 0.2.0 pokes bank 1 and will now report OFF.
+Rebuild it with `tools/make_swram_disc.py`.
+
+There is still no `*SRLOAD`: that is a Master command, and this is a Model B
+with MOS 1.20. Software selects a bank by writing to ROMSEL at `&FE30`, and
+cannot do it from BASIC, which lives in bank 3 and would fetch its next byte
+from the bank it just selected — the routine has to run from main RAM with
+interrupts off.
 
 0.1.2 centres a picture narrower than the window. A game is free to tell
 the CRTC to display fewer characters than its mode's full width, and until now
@@ -75,26 +87,32 @@ the disc controller is asked for and answers the same command sequence MAME's
 DFS issues over a whole Exile boot; Exile's MODE 7 title page agrees with
 MAME's render on 89.19% of the pixels lit in either, at the peak of an
 alignment sweep; a BASIC `SOUND` note is 527.423 Hz against MAME's 527.426,
-with the AC RMS ratio 1.009; and the sideways RAM answers `&5A` with the
-setting on and `&FF` with it off, on every one of the 25 rows of the screen,
-both typed at the prompt and booted from a disc through this core's own 8271.
+with the AC RMS ratio 1.009.
+
+The sideways RAM is checked against the software rather than against MAME,
+because MAME's `bbcb` masks ROMSEL to two bits and cannot present banks 4-7 at
+all. Twenty-three unit checks cover the banks: 4-7 read back what is written
+and stay independent, 0-3 still answer from the ROM image, 8-15 read `&FF`,
+and with the board out nothing above bank 3 is reachable. The boot banner is
+unchanged with the board fitted, so the MOS's sixteen-bank reset scan rejects
+the empty banks on its copyright check rather than trying to enter one.
 
 With the sideways RAM switched off the picture is byte-identical to the build
-before it existed — 0 of 163,840 pixels differ on the boot frame.
+from before the feature existed — 0 of 163,840 pixels differ on the boot frame.
 
 On hardware: a line drawn across the full width of the screen reaches both
 edges with none of it missing, three consecutive frames of a still picture are
 identical, Exile and Chuckie Egg load from disc and play, and the sideways-RAM
-test disc reports the RAM present with the setting on.
+test disc reports the RAM present with the setting on — and Holed Out, which
+wants banks 4 and 5, loads and plays.
 
 Timing closes with no negative slack on any check at either corner.
 
 ## What is not
 
-No third-party software that uses sideways RAM has been run against it — the
-Exile disc's own `ExileSR` turns out not to start in MAME either, so it could
-not serve as the check. What is confirmed is that the sockets are RAM, read
-back what is written to them and are reached through ROMSEL the normal way.
+One piece of third-party sideways-RAM software has been run against it, Holed
+Out, and it works on hardware. The Exile disc's own `ExileSR` does not start
+in MAME either, so it is not a check on anything.
 
 No frame of a game's own gameplay has been compared with MAME — the screens
 compared are teletext ones — and no game's sound has been compared, only a

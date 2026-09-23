@@ -8,10 +8,15 @@ puts the same program -- character for character the one checked against MAME
 in artifacts/swram/ -- in a `!BOOT` file with boot option 3 (*EXEC), so with
 "Auto-boot disc" on, BREAK runs it and the machine prints the answer.
 
-The program cannot be BASIC alone: BASIC lives in socket 3, so the byte after
-a write to ROMSEL would be fetched from whichever socket was just selected.
-It assembles a routine into BASIC's own heap, runs it with interrupts off, and
+The program cannot be BASIC alone: BASIC lives in bank 3, so the byte after a
+write to ROMSEL would be fetched from whichever bank was just selected.  It
+assembles a routine into BASIC's own heap, runs it with interrupts off, and
 restores ROMSEL from &F4 -- the copy of it the MOS keeps -- before returning.
+
+It selects bank 4, which a bare Model B does not have: its ROMSEL latches two
+bits, so 4 would alias onto bank 0 and the write would land on the DNFS ROM
+and vanish.  That is the point of the test -- with the board fitted the bank
+exists, and without it the read comes back &FF.
 
 DFS catalogue, for what the byte-laying below is doing (`ref/mame` has the
 controller; the format is Acorn's):
@@ -27,11 +32,11 @@ SECTOR = 256
 SECTORS = 800                      # 80 tracks x 10, a single-sided 200K disc
 
 # Each line is handed to BASIC as if typed.  ?&70 is the byte the routine read
-# back out of &8000; &5A is what it wrote there.  A socket with no RAM and no
-# ROM in it reads &FF.
+# back out of &8000; &5A is what it wrote there.  A bank with no RAM and no
+# ROM in it reads &FF, and so does bank 0's DNFS at that address.
 BOOT = (
     "*BASIC\r"
-    "DIM C% 50:P%=C%:[OPT 2:SEI:LDA #1:STA &FE30:LDA #&5A:STA &8000:"
+    "DIM C% 50:P%=C%:[OPT 2:SEI:LDA #4:STA &FE30:LDA #&5A:STA &8000:"
     "LDA &8000:STA &70:LDA &F4:STA &FE30:CLI:RTS:]:CALL C%\r"
     'P.\'"&8000 READS &";~?&70\r'
     'IF ?&70=&5A THEN P."SIDEWAYS RAM: ON" ELSE P."SIDEWAYS RAM: OFF"\r'
