@@ -3,6 +3,13 @@
 #
 # Usage: cut-release.sh <tag> <run-id>
 #        cut-release.sh v1.0.0 32214080417
+#        cut-release.sh v1.1.0-alpha.1 32214080417   -> marked a pre-release
+#
+# A tag with a semver pre-release part -- anything after a `-` -- is published
+# as a GitHub pre-release, so it does not become the download the project page
+# offers. That is decided from the tag rather than a flag because the two must
+# agree: a tag that says alpha and a release that says latest is the pair that
+# gets someone the wrong build.
 #
 # Takes the bitstream from that run rather than recompiling, so the release
 # ships the exact gateware that was tested on hardware. Everything outside the
@@ -86,7 +93,12 @@ for c in $CORES; do
     echo "  $c  md5 $(python3 -c "import hashlib,sys;print(hashlib.md5(open(sys.argv[1],'rb').read()).hexdigest())" "$OUT/Cores/$c/bitstream.rbf_r")"
 done
 
-gh release create "$TAG" \
+case "$TAG" in
+    *-*) PRE=--prerelease; echo "tag has a pre-release part; publishing as a pre-release" ;;
+    *)   PRE= ;;
+esac
+
+gh release create "$TAG" $PRE \
     --title "BBC Micro for Analogue Pocket $TAG" \
     --notes-file docs/release-notes.md \
     "$ZIP"
