@@ -1,7 +1,5 @@
-**0.2.0-alpha.1** adds **Sideways RAM**: 32K in ROM sockets 1 and 2, the two
-sockets this image leaves empty, kept across BREAK as a real board's would be.
-It is an alpha because none of it has been on hardware yet — it is here to be
-tested, not to be upgraded to.
+**0.2.0** adds **Sideways RAM**: 32K in ROM sockets 1 and 2, the two sockets
+this image leaves empty, kept across BREAK as a real board's would be.
 
 Software reaches it the way it always did, by writing the socket number to
 ROMSEL at `&FE30` — though not from BASIC, which lives in socket 3 and would
@@ -86,15 +84,17 @@ before it existed — 0 of 163,840 pixels differ on the boot frame.
 
 On hardware: a line drawn across the full width of the screen reaches both
 edges with none of it missing, three consecutive frames of a still picture are
-identical, and Exile and Chuckie Egg load from disc and play.
+identical, Exile and Chuckie Egg load from disc and play, and the sideways-RAM
+test disc reports the RAM present with the setting on.
 
 Timing closes with no negative slack on any check at either corner.
 
 ## What is not
 
-The sideways RAM has not been on hardware at all, and no third-party software
-that uses sideways RAM has been run against it — the Exile disc's own `ExileSR`
-turns out not to start in MAME either, so it could not serve as the check.
+No third-party software that uses sideways RAM has been run against it — the
+Exile disc's own `ExileSR` turns out not to start in MAME either, so it could
+not serve as the check. What is confirmed is that the sockets are RAM, read
+back what is written to them and are reached through ROMSEL the normal way.
 
 No frame of a game's own gameplay has been compared with MAME — the screens
 compared are teletext ones — and no game's sound has been compared, only a
