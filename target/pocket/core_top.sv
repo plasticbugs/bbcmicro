@@ -1020,6 +1020,13 @@ module core_top
     wire [11:0] g_adc1  = joy_use ? joy_y : 12'h800;
     wire  [1:0] g_fire_n = joy_use ? ~{p1_btn_b, p1_btn_a} : 2'b11;
 
+    //! Sideways RAM in sockets 1 and 2 -- the two this image leaves empty,
+    //! which are the ones a real board would have been fitted in.  Carried as
+    //! two bits into the core so a 16K arrangement can be offered later
+    //! without touching the RTL; the menu only asks on or off, because 32K is
+    //! strictly the more capable of the two and nothing is cheaper about 16K.
+    wire [1:0] g_swram = mod_sw0[7] ? 2'd2 : 2'd0;
+
     //! Bring-up switches from the modifier word (the "Bring-up" entries of
     //! interact.json; take them off the menu for a release, leave them here):
     //! bit 4 SDRAM read capture alternate, 5 slow bursts.
@@ -1079,7 +1086,7 @@ module core_top
         .disc_present(disc_present), .disc_dsided(disc_dsided),
         .kev_stb(kev_stb), .kev_press(kev_press),
         .kev_col(kev_col), .kev_row(kev_row), .kev_clear(kev_clear),
-        .key_break(key_break), .links(g_links),
+        .key_break(key_break), .links(g_links), .swram_sel(g_swram),
         .adc_ch0(g_adc0), .adc_ch1(g_adc1), .adc_fire_n(g_fire_n),
         .rgb(g_rgb), .hsync(g_hs), .vsync(g_vs),
         .hblank(g_hb), .vblank(g_vb), .pix_ce(g_pix_ce), .de(g_de),

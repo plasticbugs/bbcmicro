@@ -86,6 +86,15 @@ ROMSEL (`FE30`) on a Model B keeps only **bits 1:0** — four sockets, not
 sixteen (`m_romsel = data & 0x03`). Software written for expansion boards still
 writes 0-15; the top bits are simply dropped, so a write of 12 selects socket 0.
 
+A sideways **RAM** board is a socket answered by RAM instead of ROM. Nothing
+in the machine knows the difference: ROMSEL selects it the same way, and the
+only change is that a write to `8000-BFFF` lands somewhere instead of going
+nowhere. MAME models it as a slot option, `-romslot1 ram`. There is no MOS
+command to load one on a Model B -- `*SRLOAD` and `*SRWRITE` arrived with the
+Master -- so software that wants it writes ROMSEL itself, and cannot do that
+from BASIC, which lives in socket 3 and would fetch its next byte from the
+socket it just switched to.
+
 ROM socket contents, matching MAME's `bbcb` ROM region exactly:
 
 | socket | image offset in MAME's `rom` region | fitted here |

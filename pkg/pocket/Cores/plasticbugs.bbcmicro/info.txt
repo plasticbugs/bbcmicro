@@ -30,3 +30,12 @@ CONTROLS
   whole key, A or B presses, and the
   modifiers latch. SHIFT swaps the
   legends to the punctuation it types
+
+SIDEWAYS RAM
+* 32K in ROM sockets 1 and 2, kept
+  across BREAK
+* Switch to it with STA &FE30 from
+  a routine in main RAM, with SEI;
+  BASIC cannot, it is in socket 3
+* No *SRLOAD: that is a Master
+  command, this is a Model B

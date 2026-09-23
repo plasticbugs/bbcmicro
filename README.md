@@ -89,11 +89,28 @@ rather than remembered. A latched modifier is drawn amber.
 | setting | what it does |
 |---|---|
 | Auto-boot disc | fits keyboard link 6, so BREAK boots the disc as SHIFT+BREAK does on a real machine |
+| Sideways RAM | 32K of RAM in ROM sockets 1 and 2, the two this image leaves empty |
 | Joystick | the pad drives the analogue port instead of pressing keys; A and B are the two fire buttons |
 | D-pad keys | eight sets: cursor keys, `: / Z X`, `A Z , .`, `W A S D`, and CAPS/CTRL for left and right paired with each of the three common up/down pairs |
 | A / B / X / Y button key | eight keys each: SPACE, RETURN, SHIFT, ESCAPE, Z, X, `:` and `/` |
 | Screen Shape | 4:3, or fill the Pocket's screen |
 | Scanlines, Shadow Mask | the Pocket's own filters |
+
+**Sideways RAM** fits what a real board would have been fitted with: RAM in
+the paged &8000-&BFFF window, in the two of the four sockets this image leaves
+empty. It survives BREAK, as a real board does. Software that wants it finds
+it the usual way, by writing the socket number to ROMSEL at &FE30 -- though
+not from BASIC, which is itself in socket 3 and would fetch its next byte from
+the new socket. The routine has to run from main RAM with interrupts off:
+
+```
+DIM C% 50:P%=C%:[OPT 2:SEI:LDA #1:STA &FE30:LDA #&5A:STA &8000
+LDA &8000:STA &70:LDA &F4:STA &FE30:CLI:RTS:]:CALL C%:P.?&70
+```
+
+That prints `90` with the setting on and `255` with it off, and is the test
+`artifacts/swram/` holds against MAME. Note there is no `*SRLOAD`: that is a
+Master command, and this is a Model B with MOS 1.20.
 
 A disc that has no `!BOOT` file will answer BREAK with `File not found`. Type
 `*CAT` to list it, then `*RUN <name>` for a game or `CHAIN "<name>"` for a

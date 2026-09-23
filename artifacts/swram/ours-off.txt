@@ -1,0 +1,13 @@
+
+BBC Computer 32K
+
+Acorn DFS
+
+BASIC
+
+>DIM C% 50:P%=C%:[OPT 2:SEI:LDA _1:STA &
+FE30:LDA _&5A:STA &8000:LDA &8000:STA &7
+0:LDA &F4:STA &FE30:CLI:RTS:]:CALL C%:P.
+?&70
+       255
+>
