@@ -31,6 +31,14 @@ CONTROLS
   modifiers latch. SHIFT swaps the
   legends to the punctuation it types
 
+ANALOGIZER
+* CRT video (RGBS, RGsB, YPbPr, Y/C)
+  and a PS/2 keyboard or SNAC pad,
+  set in this core's menu
+* H and V Position centre the picture
+* The slot is powered: remove any
+  cartridge first
+
 SIDEWAYS RAM
 * Fits a 64K board: banks 4 to 7,
   kept across BREAK

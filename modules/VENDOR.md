@@ -24,6 +24,17 @@ tools/vhdl2v.sh modules/cpu-t65 T65        # and so on, per the table
 | `video-ula` | Ferranti video ULA (`vidproc_orig`) | BeebFpga `src/common/vidproc_orig.vhd`, Mike Stirling 2011 | `f0c99eb72b5d` | BSD-style |
 | `sound-sn76489` | TI SN76489A | BeebFpga `src/common/sn76489.vhd` | `f0c99eb72b5d` | see header |
 | `adc-upd7002` | NEC µPD7002 ADC | BeebFpga `src/common/upd7002.vhd` | `f0c99eb72b5d` | see header |
+| `target/pocket/analogizer/` | RndMnkIII's Analogizer adapter module (`openFPGA_Pocket_Analogizer` 1.4) and the 14 files it instantiates, verbatim, via the pocket-core-template; `analogizer.qip` is ours | https://github.com/RndMnkIII/MiraxPocket, `src/fpga/analogizer/` | `9dfdd2b9bec7` | GPL-3.0-or-later (the host core's); `hq2x.sv`, `scandoubler_2.v`, `yc_out_legacy.sv` carry their own GPL headers |
+
+The Analogizer module lives under `target/pocket/` rather than `modules/`
+because it is the Pocket's cartridge port, not the machine, and so that
+`tools/gen_qip.sh` and the per-module lint do not sweep it in: `core.qip`
+includes its own `analogizer.qip`, and `sim/lint.sh` lints it behind
+`target/pocket/pocket_analogizer.sv` with a stand-in for its one VHDL file
+(`sim/ps2_keyboard_stub.v`).  Left out: `scandoubler.v`, `scanlines.v`,
+`yc_out.sv`, `psPAD_top.v`, `psx_control.v`, `csync.v`, `sync_fix.v` (also
+defined inside the top file), `two_button_press_detector.v`, `uart_tx.v`
+and `sine_lut.mem` -- nothing instantiates them.
 
 ## Modifications
 

@@ -120,6 +120,9 @@ modules/                                vendored CPUs and sound chips; VENDOR.md
 target/pocket/core_top.sv               APF glue; game-specific only below "@ The game"
 target/pocket/bbcmicro_mem.sv             SDRAM clients, download FIFO, burst arbiter, SRAM
 target/pocket/sdram_ctrl.sv sram_port.sv   proven on hardware; do not edit casually
+target/pocket/pocket_analogizer.sv     the Analogizer: clock hand-over, Y/C, SNAC -> key1..4, position
+target/pocket/analogizer/              RndMnkIII's adapter module, verbatim (docs/analogizer.md)
+rtl/bbc_ps2.sv                          a PS/2 keyboard on the Analogizer's SNAC port, into the matrix
 projects/                               Quartus project, SDC, report_worst.tcl
 platform/pocket/                        OpenGateware's gateman-pocket (Marcus Andrade) — leave alone
 pkg/pocket/                             what goes on the SD card (never a ROM)
@@ -137,6 +140,8 @@ build-local.sh  package-pocket.py       Quartus 18.1 in Docker; the SD-card pack
 tools/init_core.py galaga "Galaga" <github-handle>   # once, before anything else
 sim/lint.sh                  # seconds; before every commit
 sim/run_mem.sh -quick        # a minute; after touching bbcmicro_mem.sv (drop -quick before a flash)
+sim/run_analogizer.sh        # the Analogizer path, read at the cartridge pins
+sim/run_ps2.sh               # seconds; the PS/2 keyboard against MAME's key map
 ./build-local.sh map         # two minutes; catches what Verilator cannot
 ./build-local.sh compile     # 10-25 minutes; then read projects/output_files/*.sta.summary
 docker run --rm --platform linux/amd64 -v "$PWD":/build -w /build \

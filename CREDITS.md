@@ -68,6 +68,19 @@ commits and the licences; this is who they are.
 * **Acorn Computers**, for the machine, and for a design documented well
   enough that it can be rebuilt forty-five years later.
 
+## The Analogizer
+
+* **RndMnkIII** -- the [Analogizer](https://github.com/RndMnkIII/Analogizer)
+  adapter and its `openFPGA_Pocket_Analogizer` module
+  (`target/pocket/analogizer/`, taken verbatim from his MiraxPocket core via
+  the pocket-core-template), with the parts it gathers from others: the Y/C
+  encoder by **Mike Simone** (MiSTerFPGA_YC_Encoder), the scandoubler and
+  HQ2x by **Sorgelig** and **Ludvig Strigeus** (MiSTer), the PlayStation
+  controller interface after **pgate1**'s psPAD, and the SNAC game-controller
+  readers he credits to **@MikeSimonson**, the **MiST** project,
+  **@RandyS**, **jotego**, **Scott Larson** (the PS/2 receiver this core's
+  keyboard comes through) and **@tomasz**.
+
 ## The house style
 
 `METHODOLOGY.md` was written across the Xenophobe, Time Pilot, Gaiapolis,

@@ -95,6 +95,7 @@ rather than remembered. A latched modifier is drawn amber.
 | A / B / X / Y button key | eight keys each: SPACE, RETURN, SHIFT, ESCAPE, Z, X, `:` and `/` |
 | Screen Shape | 4:3, or fill the Pocket's screen |
 | Scanlines, Shadow Mask | the Pocket's own filters |
+| Analogizer, SNAC Adapter, Analogizer H / V Position | the Analogizer adapter, below |
 
 **Sideways RAM** fits a board, not a socket. A bare Model B latches only two
 bits of ROMSEL -- `m_romsel = data & 0x03` in MAME's `bbcb` -- so it has four
@@ -124,6 +125,21 @@ A disc that has no `!BOOT` file will answer BREAK with `File not found`. Type
 `*CAT` to list it, then `*RUN <name>` for a game or `CHAIN "<name>"` for a
 BASIC loader. Note that DFS filenames are the machine's characters, not
 ASCII: Chuckie Egg's is `CH#EGG`, and the `#` is SHIFT+3.
+
+## Analogizer
+
+The core supports RndMnkIII's [Analogizer](https://github.com/RndMnkIII/Analogizer)
+adapter: the machine's own 15.625 kHz, 50 Hz picture out of the VGA port
+(RGBS, RGsB, YPbPr or Y/C; no scandoubler, because the BBC's 16 MHz dot is
+too fast for it at the adapter's clock), a **PS/2 keyboard** on the adapter's
+SNAC port typing on the BBC, and SNAC pads as player 1.  It is set up in the
+core's own menu (Analogizer, SNAC Adapter, and H and V Position to centre
+the picture on the CRT); with "Analogizer" off, the default, the core is
+unchanged.  Because the core declares a cartridge adapter, the Pocket powers
+the slot: take any game cartridge out first.  `docs/analogizer.md` has the
+modes, the keyboard layout (positional, as MAME's: F1-F10 are f0-f9, F12 is
+BREAK, End is COPY) and what has been checked: everything in simulation,
+nothing yet on hardware with this core.
 
 ## Building the ROM image
 
@@ -156,6 +172,8 @@ synthesis only — a couple of minutes, and it catches what Verilator cannot.
 ```sh
 sim/lint.sh                    # every module on its own; seconds
 sim/run_osk.sh                 # the on-screen keyboard against its generator
+sim/run_analogizer.sh          # the Analogizer path, read at the cartridge pins
+sim/run_ps2.sh                 # a PS/2 keyboard on the Analogizer, against MAME's key map
 sim/run_mem.sh                 # every byte of two disc images, through the
                                # download FIFO at the loader's own rate
 sim/run_pocket.sh -compare ../artifacts/boot
@@ -189,6 +207,7 @@ SHEILA, and `-pc LO,HI` to one address range over a whole run.
 machine and the Pocket; **Mike Stirling** and **David Banks**
 ([BeebFpga](https://github.com/hoglet67/BeebFpga)) wrote the BBC's video and
 I/O chips in FPGA form; **MikeJ** wrote the 6522; the **T65** authors wrote
-the 6502; **Nigel Barnes** and **Gordon Jefferyes** maintain MAME's BBC
+the 6502; **RndMnkIII** made the Analogizer and its module, with Mike
+Simone's Y/C encoder and MiSTer's scandoubler inside it; **Nigel Barnes** and **Gordon Jefferyes** maintain MAME's BBC
 driver, which this core is written from; and Acorn built a machine documented
 well enough to rebuild forty-five years later.

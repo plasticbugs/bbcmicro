@@ -16,9 +16,9 @@
 // are the startup links the OS reads at reset -- which is why row 0 is
 // excluded from the interrupt.  A link fitted reads as a key down.
 //
-// Keys arrive as matrix positions rather than scancodes, because both sources
-// know the matrix: the on-screen keyboard draws it, and core_top translates
-// the pad and any USB keyboard into it.
+// Keys arrive as matrix positions rather than scancodes, because every source
+// knows the matrix: the on-screen keyboard draws it, bbc_input translates the
+// pad into it, and bbc_ps2 a PS/2 keyboard on the Analogizer.
 //------------------------------------------------------------------------------
 `default_nettype none
 

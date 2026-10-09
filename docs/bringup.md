@@ -166,6 +166,41 @@ power-on and nothing else, the audio hand-over is running but the sound chip
 is not being written; if there is a continuous tone, the chip is being written
 but never silenced.
 
+## With an Analogizer
+
+Not yet run on hardware with this core (docs/analogizer.md says what the
+benches proved; the same wrapper has had one good run in Moo Mesa).  In this
+order -- each step's reading tells the next one where to look:
+
+1. **Menu "Analogizer: Off"** (the default).  The core must work exactly as
+   without the adapter, Pocket screen and controls, and a disc must load
+   and run as before.  The build that added the Analogizer also moved the
+   SDRAM clock shift two steps (5.859 to 6.119 ns, projects/*.sdc) to keep
+   its read-capture timing: the SDRAM holds only the disc image here, so a
+   disc that fails to load or a program that crashes from disc points at
+   that.  Anything else wrong points at the cart port not being idle: stop
+   there.
+2. **Menu "Analogizer: RGBS", SNAC Adapter None.**  Expected: the same
+   picture on the Pocket and on the CRT, 15.625 kHz / 50.08 Hz (a PVM's info
+   screen shows it).  MODE 7's boot screen first, then MODE 0 (`MODE 0` at
+   the prompt): 80 columns is the hardest test of the DAC clock, three of
+   its clocks a dot.  Soft, smeared or missing columns in MODE 0 only point
+   at that.  No picture at all: say whether the CRT reports a signal.
+3. **Each other video mode in turn** (RGsB and YPbPr need the SOG switch on).
+4. **PS/2 keyboard**: SNAC Adapter "PS/2 Keyboard", a keyboard on the SNAC
+   port.  Type at the prompt; `"` is SHIFT+2 as on a BBC; F12 is BREAK;
+   F1 is f0.  Nothing at all: say whether the keyboard's lights come on.
+5. **SNAC pad**: SNAC Adapter set to the pad's type.  It drives the d-pad and
+   button mapping as the Pocket's own controls do, and those stop working.
+6. **The menu's memory**: change the mode, quit the core and load it again.
+   The setting should still be there.  Then change another entry and check
+   the first did not move.
+7. **Position**: "Analogizer V Position" + should move the picture down by
+   that many lines, + on "H Position" to the right (by sixteenths of a
+   microsecond: steps of 8 are the useful ones), and both should be kept
+   across a reload.  A slider showing a value other than the one set means
+   the firmware is not reading 0xF7000004/8 back as written.
+
 ## What to report
 
 For each run, the four rows as you read them (or a photograph of the panel),
