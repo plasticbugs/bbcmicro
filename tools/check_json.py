@@ -297,6 +297,26 @@ def main(argv):
             fault(cj, 'Analogizer menu present but cartridge_adapter is not 0: '
                       'the cartridge port is not powered')
 
+    # What the firmware refuses, measured on hardware (2026-10-09): with 16
+    # entries, 70 and 77 options in the whole menu stopped Atari System 2 and
+    # BBC Micro with "Error in interact" at core setup, while MSX2 loads with
+    # 68 options (80 with its entries) and Cadash and Cloak with 54.
+    # Analogue's docs say a list's options count toward no limit; on this
+    # firmware they do, somewhere above 68.
+    HW_OPTS_MAX, HW_OPTS_VARS_MAX = 68, 80
+    for path in files:
+        if os.path.basename(path) != 'interact.json':
+            continue
+        try:
+            hv = json.load(open(path))['interact'].get('variables', [])
+        except Exception:
+            continue
+        hn = sum(len(x.get('options', [])) for x in hv)
+        if hn > HW_OPTS_MAX or hn + len(hv) > HW_OPTS_VARS_MAX:
+            fault(path, f'{hn} options and {len(hv)} entries: the firmware refused '
+                        f'70 options (86 with entries) and loads 68 (80); keep to '
+                        f'{HW_OPTS_MAX} and {HW_OPTS_VARS_MAX}')
+
     for f in bad:
         print('  ' + f)
     print()

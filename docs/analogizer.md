@@ -307,3 +307,12 @@ Set `USE_ANALOGIZER = 0` in `core_top.sv`, remove `general[4]` from the PLL
 group in the SDC (it would match nothing), and take the four menu entries
 and `cartridge_adapter: 0` out of the JSON. `rtl/bbc_ps2.sv` then gets no
 bytes and does nothing.
+
+**The menu's size, measured on hardware (2026-10-09).** The first build of
+this menu had over 68 options in all and the Pocket refused it ("Error in
+interact" at core setup); MSX2 loads with 68, Cadash and Cloak with 54.
+Analogue's docs say a list's options count toward no limit; this firmware
+disagrees. The Analogizer's lists were trimmed to keep the whole menu at 64
+(SNAC types a one- or two-player game has no use for, and the rarer
+Pocket-off variants); `tools/check_json.py` now refuses more than 68
+options, or more than 80 options and entries together.

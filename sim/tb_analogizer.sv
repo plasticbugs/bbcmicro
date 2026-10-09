@@ -453,7 +453,7 @@ module tb_analogizer;
         $display("idle: checked");
 
         menu_entries();                       // every option, in file order
-        if (MENU_OPTIONS < 20) fail("menu: interact.json has too few Analogizer options");
+        if (MENU_OPTIONS < 10) fail("menu: interact.json has too few Analogizer options");   // 14 here: the menu is trimmed to the firmware's option limit
         write_settings(32'h0);                // back to the default
         repeat (10) @(posedge clk);
         check_idle();

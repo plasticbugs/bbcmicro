@@ -79,29 +79,16 @@
         {"name": "YPbPr", "value": "0x0820"},
         {"name": "Y/C NTSC", "value": "0x0C20"},
         {"name": "Y/C PAL", "value": "0x1020"},
-        {"name": "RGBS, Pocket off", "value": "0x4020"},
-        {"name": "RGsB, Pocket off", "value": "0x4420"},
-        {"name": "YPbPr, Pocket off", "value": "0x4820"},
-        {"name": "Y/C NTSC, Pocket off", "value": "0x4C20"},
-        {"name": "Y/C PAL, Pocket off", "value": "0x5020"}
+        {"name": "RGBS, Pocket off", "value": "0x4020"}
       ]},
       {"name": "SNAC Adapter", "id": 72, "type": "list", "enabled": true, "persist": true, "address": "0xF7000000", "defaultval": 0, "mask": "0xFFFFFFE0", "options": [
         {"name": "None", "value": "0x00"},
         {"name": "PS/2 Keyboard", "value": "0x0F"},
-        {"name": "PS/2 Keyboard + NES", "value": "0x0C"},
         {"name": "PS/2 Keyboard + SNES", "value": "0x0D"},
-        {"name": "PS/2 Keyboard + DB15", "value": "0x0E"},
         {"name": "DB15", "value": "0x01"},
         {"name": "NES", "value": "0x02"},
         {"name": "SNES", "value": "0x03"},
-        {"name": "PCE 2-button", "value": "0x04"},
-        {"name": "PCE 6-button", "value": "0x05"},
-        {"name": "DB15 Fast", "value": "0x09"},
-        {"name": "SNES A,B<->X,Y", "value": "0x0B"},
-        {"name": "PSX Digital", "value": "0x10"},
-        {"name": "PSX Digital Fast", "value": "0x11"},
-        {"name": "PSX Analog", "value": "0x12"},
-        {"name": "PSX Analog Fast", "value": "0x13"}
+        {"name": "PSX Analog", "value": "0x12"}
       ]},
       {"name": "Analogizer H Position", "id": 74, "type": "slider_u32", "enabled": true, "persist": true, "address": "0xF7000004", "defaultval": 0, "graphical": {"signed": true, "min": -64, "max": 64, "adjust_small": 1, "adjust_large": 8}},
       {"name": "Analogizer V Position", "id": 75, "type": "slider_u32", "enabled": true, "persist": true, "address": "0xF7000008", "defaultval": 0, "graphical": {"signed": true, "min": -30, "max": 24, "adjust_small": 1, "adjust_large": 8}}
