@@ -100,8 +100,8 @@ analog mode steers with its left stick as a d-pad.
 so the Pocket powers the slot whether or not an Analogizer is in it. Do not
 leave a game cartridge in the slot while this core runs.
 
-**Not tried on hardware yet** with this core: what the benches prove is
-listed under *What was measured* below. Send problems with the adapter itself
+**Confirmed on a Pocket with an Analogizer and a CRT** (0.4.0). What the
+benches prove is listed under *What was measured* below. Send problems with the adapter itself
 to the Analogizer project.
 
 ## For the developer

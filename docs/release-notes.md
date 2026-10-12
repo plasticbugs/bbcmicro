@@ -1,3 +1,49 @@
+# 0.4.0
+
+**Analogizer support, with a PS/2 keyboard.** The BBC Micro now works with
+RndMnkIII's [Analogizer](https://github.com/RndMnkIII/Analogizer) adapter:
+its picture on a CRT, and a keyboard or pad through SNAC. Confirmed on a
+Pocket with an Analogizer and a CRT.
+
+### What's new
+
+- **Video out of the adapter's VGA port**: one **Analogizer** entry picks
+  Off, RGBS, RGsB, YPbPr, Y/C NTSC, Y/C PAL, or "RGBS, Pocket off". The
+  signal is the BBC's own 50 Hz, 15.6 kHz picture. There is no
+  scandoubled (VGA-monitor) mode: the BBC's 16 MHz pixels are too fast for
+  it at the adapter's clock.
+- **A PS/2 keyboard types on the BBC** through SNAC ("PS/2 Keyboard", or
+  with an SNES pad), mapped by position the way MAME maps it: F1-F10 are
+  f0-f9, F12 is BREAK, End is COPY, Left Alt is SHIFT LOCK.
+- **SNAC pads** (DB15, NES, SNES, PlayStation analog) drive the BBC's
+  joystick. Choosing a pad type makes it player 1 and moves the Pocket's
+  own controls to player 2, which the BBC does not read; with "PS/2
+  Keyboard" alone the Pocket's controls still work.
+- **H / V Position** centre the picture (64 pixels either way; 30 lines up
+  to 24 down).
+- The memory clock's timing moved to make room for the adapter; discs load
+  and run on a Pocket with it.
+- The menu is kept to 64 options: the Pocket refuses a menu with many more
+  ("Error in interact" at startup).
+
+### Before you install
+
+**With this core the Pocket powers the cartridge slot.** Take any game
+cartridge out first. Set the adapter up as its
+[How to use it](https://github.com/RndMnkIII/Analogizer/wiki/How-to-use-it%3F)
+page says (SNAC switch on A, 5 V into its USB-C port, the audio cable into
+the Pocket's headphone socket). Settings are in the core's own menu; no
+`analogizer.bin` file is needed, and with "Analogizer" off (the default)
+the core plays as before.
+
+### Installing
+
+Unzip onto the SD card root, overwriting previous files. ROMs are not
+included: build them with the included `mra_build.py` from your own MAME
+romset, as the README describes.
+
+---
+
 **0.3.0** moves **Sideways RAM** to where software actually looks for it.
 
 0.2.0 put 32K in banks 1 and 2 — a RAM chip in a spare socket of a bare
