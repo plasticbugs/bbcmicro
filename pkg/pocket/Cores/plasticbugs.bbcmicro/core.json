@@ -9,8 +9,8 @@
       "description": "BBC Microcomputer Model B (Acorn, 1980)",
       "author": "plasticbugs",
       "url": "https://github.com/plasticbugs/bbcmicro",
-      "version": "0.4.0",
-      "date_release": "2026-09-22"
+      "version": "0.4.1",
+      "date_release": "2026-10-13"
     },
     "framework": {
       "target_product": "Analogue Pocket",
